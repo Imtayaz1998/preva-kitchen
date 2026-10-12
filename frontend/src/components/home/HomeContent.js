@@ -344,7 +344,8 @@ export default function Home({ menuProducts = [] }) {
         </div>
       </section>
 
-      <GoogleReviewsSection />
+      {/* Hidden for now; set visible back to true when real reviews are ready to show. */}
+      <GoogleReviewsSection visible={false} />
 
       <BookingSection />
 

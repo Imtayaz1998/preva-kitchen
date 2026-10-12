@@ -1,0 +1,36 @@
+/* Popup month calendar shared by the event inquiry form and the booking form. */
+
+.wrap { position: relative; }
+.field { position: relative; display: block; }
+.field input { cursor: pointer; padding-right: 44px !important; }
+.icon { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); color: #c5a059; pointer-events: none; display: flex; }
+
+.pop {
+  position: fixed; z-index: 1000; width: 300px;
+  padding: 16px; border-radius: 14px; border: 1px solid rgba(213, 164, 79, 0.22);
+  background: #0d090c; box-shadow: 0 24px 60px rgba(0, 0, 0, .75);
+  font-family: var(--font-roboto), Arial, sans-serif;
+}
+
+.nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; }
+.nav button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(213, 164, 79, 0.22); color: #c5a059; font-size: 16px; line-height: 1; background: rgba(255, 255, 255, .03); cursor: pointer; padding: 0; }
+.nav button:hover:not(:disabled) { border-color: #c5a059; background: rgba(197, 160, 89, .1); }
+.nav button:disabled { opacity: .3; cursor: not-allowed; }
+.month { font-size: 0.82rem; font-weight: 700; color: #fff; letter-spacing: .08em; text-transform: uppercase; }
+
+.grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.dow { font-size: 0.62rem; color: #aaa398; text-align: center; padding-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; }
+.day {
+  aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; padding: 0; width: 100%;
+  font-size: 0.78rem; font-family: inherit; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .08);
+  color: #d5d0c8; background: rgba(255, 255, 255, .02); cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+}
+.day:hover:not(:disabled) { border-color: #c5a059; background: rgba(197, 160, 89, .14); color: #fff; }
+.empty { background: none; border-color: transparent; cursor: default; }
+.past { color: #4a454b; background: none; border-color: transparent; cursor: not-allowed; }
+.selected { border-color: transparent !important; color: #fff !important; background: linear-gradient(135deg, #a6133b, #761024) !important; font-weight: 700; }
+.pop .hint { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .08); font-size: 0.72rem; color: #aaa398; line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .day { transition: none; }
+}

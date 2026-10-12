@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Swal from 'sweetalert2';
-import { RESERVATION_GUEST_OPTIONS } from '@/lib/reservation-options';
+import { RESERVATION_MIN_GUESTS, RESERVATION_MAX_GUESTS } from '@/lib/reservation-options';
+import CalendarDatePicker from '@/components/forms/CalendarDatePicker';
+import GuestPicker from '@/components/forms/GuestPicker';
 import { ArrowRight, CalendarDays, Clock3, Mail, Phone, Sparkles, User, UsersRound } from 'lucide-react';
 
 const BOOKING_PURPOSES = [
@@ -15,6 +17,8 @@ const BOOKING_PURPOSES = [
 export default function BookingSection() {
   const [booking, setBooking] = useState({ name: '', email: '', phone: '', purpose: '', date: '', time: '', guests: '2', hp_field: '' });
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  // Bumped when the form resets so GuestPicker drops its "Custom" mode too.
+  const [resetCount, setResetCount] = useState(0);
   // "Other" in the purpose dropdown reveals this free-text field instead of
   // replacing the dropdown outright — keeps a category for the common cases
   // without losing the ability to type something specific.
@@ -58,6 +62,11 @@ export default function BookingSection() {
     }
     if (!booking.date || !booking.time) {
       Swal.fire({ ...swalBase, icon: 'warning', title: 'Date & Time required', text: 'Please select a date and time.' });
+      return;
+    }
+    const guestCount = Number(booking.guests);
+    if (!Number.isInteger(guestCount) || guestCount < RESERVATION_MIN_GUESTS || guestCount > RESERVATION_MAX_GUESTS) {
+      Swal.fire({ ...swalBase, icon: 'warning', title: 'Number of guests', text: `Please enter between ${RESERVATION_MIN_GUESTS} and ${RESERVATION_MAX_GUESTS} guests. For larger groups, please call us.` });
       return;
     }
 
@@ -120,6 +129,7 @@ export default function BookingSection() {
       width: '460px',
     });
     setBooking({ name: '', email: '', phone: '', purpose: '', date: '', time: '', guests: '2', hp_field: '' });
+    setResetCount((n) => n + 1);
     setPurposeOther('');
   };
 
@@ -220,15 +230,16 @@ export default function BookingSection() {
                   )}
                 </div>
 
-                <div className="pk-ref-booking-row-split">
+                <div className="pk-ref-booking-row-split" style={{ gridTemplateColumns: '1fr 1fr' }}>
                   <div className="pk-ref-booking-group">
                     <span className="pk-ref-booking-label"><CalendarDays size={12} /> Date</span>
-                    <input
-                      className="pk-ref-booking-input"
-                      type="date"
+                    <CalendarDatePicker
+                      id="booking-date"
+                      ariaLabel="Reservation date"
+                      align="left"
+                      inputClassName="pk-ref-booking-input"
                       value={booking.date}
-                      onChange={updateBooking('date')}
-                      aria-label="Reservation date"
+                      onChange={(date) => setBooking((current) => ({ ...current, date }))}
                     />
                   </div>
                   <div className="pk-ref-booking-group">
@@ -238,14 +249,18 @@ export default function BookingSection() {
                       {['5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM', '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM', '9:00 PM'].map((time) => <option key={time}>{time}</option>)}
                     </select>
                   </div>
-                  <div className="pk-ref-booking-group">
-                    <span className="pk-ref-booking-label"><UsersRound size={12} /> Guests</span>
-                    <select className="pk-ref-booking-input" value={booking.guests} onChange={updateBooking('guests')} aria-label="Number of guests">
-                      {RESERVATION_GUEST_OPTIONS.map((g) => (
-                        <option key={g} value={g}>{g} {g === 1 ? 'Person' : 'People'}</option>
-                      ))}
-                    </select>
-                  </div>
+                </div>
+
+                <div className="pk-ref-booking-group">
+                  <span className="pk-ref-booking-label"><UsersRound size={12} /> Guests</span>
+                  <GuestPicker
+                    key={resetCount}
+                    value={booking.guests}
+                    min={RESERVATION_MIN_GUESTS}
+                    max={RESERVATION_MAX_GUESTS}
+                    inputClassName="pk-ref-booking-input"
+                    onChange={(guests) => setBooking((current) => ({ ...current, guests }))}
+                  />
                 </div>
 
                 <button type="submit" className="pk-ref-button pk-ref-button--gold pk-ref-booking-submit" style={{ width: '100%', marginTop: '4px' }} disabled={bookingSubmitting}>

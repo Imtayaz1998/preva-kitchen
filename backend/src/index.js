@@ -6,5 +6,6 @@
 import './routes/public.js';
 import './routes/shop.js';
 import './routes/admin.js';
+import './routes/events.js';
 
 export { dispatch, listRoutes } from './router.js';

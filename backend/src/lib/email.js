@@ -14,6 +14,10 @@ const BRAND_NAME   = 'Preva Kitchen';
 const BRAND_ADDRESS = '13090 Inkster Rd, Redford Township, MI 48239';
 const BRAND_PHONE  = '(313) 286-3586';
 
+// The same logo the website header shows, loaded from the live site (not
+// attached, so mail clients show it in the header only).
+const LOGO_URL = 'https://prevakitchen.com/asset/preva-kitchen-logo.webp';
+
 function getFromAddress() {
   const configured = String(
     process.env.FROM_EMAIL || process.env.STAFF_EMAIL_FROM || ''
@@ -267,16 +271,7 @@ function wrap({ icon, title, subtitle, tableRows, adminLink, adminLabel = 'View 
           <!-- Luxury Header -->
           <tr>
             <td class="header-cell" style="background:linear-gradient(180deg, #1C1710 0%, #13110E 100%);padding:28px 36px 22px;border-bottom:1px solid #382D1B;text-align:center;">
-              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;">
-                <tr>
-                  <td align="center" style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg, #2D2313 0%, #1A1408 100%);border:1px solid #6E5325;text-align:center;line-height:38px;box-shadow:0 4px 14px rgba(0,0,0,0.5);">
-                    <span style="font-family:'Cinzel',Georgia,serif;font-size:19px;font-weight:700;color:#F5D899;letter-spacing:1px;">P</span>
-                  </td>
-                </tr>
-              </table>
-              <div style="margin:0 0 5px;color:#F5D899;font-family:'Cinzel',Georgia,serif;font-size:20px;font-weight:700;letter-spacing:6px;text-transform:uppercase;text-shadow:0 2px 10px rgba(245,216,153,0.2);">PREVA</div>
-              <div style="margin:0 auto;color:#9E8E75;font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">Kitchen &bull; Redford Township</div>
-              <div style="width:56px;height:1px;background:linear-gradient(90deg, transparent, #D4AF37 50%, transparent);margin:12px auto 0;"></div>
+              <img src="${LOGO_URL}" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
             </td>
           </tr>
           <!-- Main Content -->
@@ -905,16 +900,7 @@ function customerConfirmationHtml({ eyebrow, heading, name, referenceId, introLi
           <!-- Luxury Header -->
           <tr>
             <td class="header-cell" style="background:linear-gradient(180deg, #1C1710 0%, #13110E 100%);padding:28px 36px 22px;border-bottom:1px solid #382D1B;text-align:center;">
-              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 12px;">
-                <tr>
-                  <td align="center" style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg, #2D2313 0%, #1A1408 100%);border:1px solid #6E5325;text-align:center;line-height:38px;box-shadow:0 4px 14px rgba(0,0,0,0.5);">
-                    <span style="font-family:'Cinzel',Georgia,serif;font-size:19px;font-weight:700;color:#F5D899;letter-spacing:1px;">P</span>
-                  </td>
-                </tr>
-              </table>
-              <div style="margin:0 0 5px;color:#F5D899;font-family:'Cinzel',Georgia,serif;font-size:20px;font-weight:700;letter-spacing:6px;text-transform:uppercase;text-shadow:0 2px 10px rgba(245,216,153,0.2);">PREVA</div>
-              <div style="margin:0 auto;color:#9E8E75;font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">Kitchen &bull; Redford Township</div>
-              <div style="width:56px;height:1px;background:linear-gradient(90deg, transparent, #D4AF37 50%, transparent);margin:12px auto 0;"></div>
+              <img src="${LOGO_URL}" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
             </td>
           </tr>
           <!-- Content Body -->
@@ -1081,3 +1067,95 @@ export const sendReservationCustomerEmail = notifyReservationCustomer;
 export const sendReservationAdminEmail = notifyReservation;
 export const sendCareerApplicantEmail = notifyCareerApplicationCustomer;
 export const sendCareerAdminEmail = notifyCareerApplication;
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Event landing-page inquiries (/corporate-events, /birthday-parties,
+   /baby-showers). `data.detailList` is [[label, value], ...] of the
+   page-specific answers, already in readable form.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function eventDetailRows(data) {
+  return (data.detailList || []).map(([label, value]) => row(label, value)).join('');
+}
+
+/** Staff alert for a new event inquiry — goes to the reservations inbox. */
+export async function notifyEventInquiry(data) {
+  const submitted = data.submittedAt ? new Date(data.submittedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  return send({
+    to: getReservationRecipients(),
+    replyTo: data.email || undefined,
+    subject: `New ${data.eventType} Inquiry - PREVA Kitchen`,
+    html: wrap({
+      icon: 'E',
+      title: `New ${data.eventType} Inquiry`,
+      subtitle: `${data.guestCount || '?'} guests · ${data.preferredDate || 'Date TBD'}`,
+      tableRows:
+        row('Name', data.name) +
+        row('Phone', data.phone) +
+        row('Email', data.email) +
+        row('Event Type', data.eventType) +
+        row('Preferred Date', data.preferredDate) +
+        row('Guests', data.guestCount) +
+        eventDetailRows(data) +
+        row('Message', data.message) +
+        row('Reference', data.referenceId) +
+        row('Submitted', submitted) +
+        row('Page', data.pageUrl)
+    }),
+    text: `New ${data.eventType} Inquiry\n\n${textDetails([
+      ['Customer', data.name],
+      ['Email', data.email],
+      ['Phone', data.phone],
+      ['Event Type', data.eventType],
+      ['Preferred Date', data.preferredDate],
+      ['Guests', data.guestCount],
+      ...(data.detailList || []),
+      ['Message', data.message],
+      ['Reference', data.referenceId],
+      ['Submitted', submitted],
+      ['Page', data.pageUrl]
+    ])}`,
+    formType: 'EVENT_INQUIRY',
+    recipientType: 'admin',
+    referenceId: data.referenceId
+  });
+}
+
+/** Customer copy of their event inquiry. */
+export async function notifyEventInquiryCustomer(data) {
+  if (!data.email) return false;
+  return send({
+    to: data.email,
+    replyTo: getReservationRecipients()[0],
+    subject: `${data.eventType} Inquiry Received - PREVA Kitchen`,
+    html: customerConfirmationHtml({
+      eyebrow: 'Events at PREVA',
+      heading: 'Your event inquiry is with our team.',
+      name: data.name,
+      referenceId: data.referenceId,
+      introLine: `Thank you for your ${escapeHtml(data.eventType)} inquiry at ${BRAND_NAME}. Here is a copy of the details you sent. Availability and final terms are confirmed directly by our events team.`,
+      summaryRows:
+        row('Event Type', data.eventType) +
+        row('Preferred Date', data.preferredDate) +
+        row('Guests', data.guestCount) +
+        eventDetailRows(data) +
+        row('Phone', data.phone) +
+        row('Message', data.message),
+      nextSteps: `Our events team will review your date and come back with availability and options. If your date is urgent, call us directly at ${BRAND_PHONE}.`,
+      ctaLabel: 'Visit PREVA Kitchen',
+      ctaHref: getSiteUrl()
+    }),
+    text: `Hello ${data.name || 'there'},\n\nThank you for your ${data.eventType} inquiry at PREVA Kitchen. Here is a copy of the details you sent. Availability and final terms are confirmed directly by our events team.\n\n${textDetails([
+      ['Reference', data.referenceId],
+      ['Event Type', data.eventType],
+      ['Preferred Date', data.preferredDate],
+      ['Guests', data.guestCount],
+      ...(data.detailList || []),
+      ['Phone', data.phone],
+      ['Message', data.message]
+    ])}\n\nQuestions? Call ${BRAND_PHONE}.\n${getSiteUrl()}`,
+    formType: 'EVENT_INQUIRY',
+    recipientType: 'customer',
+    referenceId: data.referenceId
+  });
+}

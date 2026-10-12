@@ -8,6 +8,8 @@ export const metadata = pageMetadata({
   titleIncludesBrand: true,
   description: 'Wings, lamb chops, Rasta pasta & Caribbean comfort food in Redford Township, MI. Dine in Tue–Sun, order pickup & delivery online. Call (313) 286-3586.',
   path: '/',
+  // Website logo on a dark 1200x630 card, for link previews of the home page.
+  image: '/asset/preva-kitchen-og.png',
   keywords: [
     'Preva Kitchen Redford Township',
     'restaurant Redford Township MI',

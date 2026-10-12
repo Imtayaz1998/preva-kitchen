@@ -206,9 +206,7 @@ function wrapEmail({ title, subtitle, referenceId, badgeText = 'Website Notifica
           </tr>
           <tr>
             <td class="header-cell" style="background:linear-gradient(180deg, #1C1710 0%, #13110E 100%);padding:26px 32px 20px;border-bottom:1px solid #382D1B;text-align:center;">
-              <img src="${escapeHtml(siteUrl)}/asset/preva-kitchen-logo-email.png" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto 6px;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
-              <div style="margin:0 auto;color:#9E8E75;font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">Kitchen &bull; Redford Township</div>
-              <div style="width:56px;height:1px;background:linear-gradient(90deg, transparent, #D4AF37 50%, transparent);margin:10px auto 0;"></div>
+              <img src="https://prevakitchen.com/asset/preva-kitchen-logo.webp" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
             </td>
           </tr>
           <tr>
@@ -306,9 +304,7 @@ function wrapCustomerConfirmation({ eyebrow = 'PREVA Concierge', heading, name, 
           </tr>
           <tr>
             <td class="header-cell" style="background:linear-gradient(180deg, #1C1710 0%, #13110E 100%);padding:26px 32px 20px;border-bottom:1px solid #382D1B;text-align:center;">
-              <img src="${escapeHtml(siteUrl)}/asset/preva-kitchen-logo-email.png" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto 6px;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
-              <div style="margin:0 auto;color:#9E8E75;font-size:9px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">Kitchen &bull; Redford Township</div>
-              <div style="width:56px;height:1px;background:linear-gradient(90deg, transparent, #D4AF37 50%, transparent);margin:10px auto 0;"></div>
+              <img src="https://prevakitchen.com/asset/preva-kitchen-logo.webp" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
             </td>
           </tr>
           <tr>
