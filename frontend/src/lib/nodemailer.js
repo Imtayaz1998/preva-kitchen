@@ -206,7 +206,7 @@ function wrapEmail({ title, subtitle, referenceId, badgeText = 'Website Notifica
           </tr>
           <tr>
             <td class="header-cell" style="background:linear-gradient(180deg, #1C1710 0%, #13110E 100%);padding:26px 32px 20px;border-bottom:1px solid #382D1B;text-align:center;">
-              <img src="https://prevakitchen.com/asset/preva-kitchen-logo.webp" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
+              <img src="https://prevakitchen.com/asset/preva-kitchen-logo-email.png" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
             </td>
           </tr>
           <tr>
@@ -304,7 +304,7 @@ function wrapCustomerConfirmation({ eyebrow = 'PREVA Concierge', heading, name, 
           </tr>
           <tr>
             <td class="header-cell" style="background:linear-gradient(180deg, #1C1710 0%, #13110E 100%);padding:26px 32px 20px;border-bottom:1px solid #382D1B;text-align:center;">
-              <img src="https://prevakitchen.com/asset/preva-kitchen-logo.webp" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
+              <img src="https://prevakitchen.com/asset/preva-kitchen-logo-email.png" width="210" height="70" alt="Preva Kitchen" style="display:block;margin:0 auto;width:210px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;">
             </td>
           </tr>
           <tr>

@@ -210,7 +210,7 @@
 }
 
 @media(max-width:560px){
-  .career-reference.home .hero-copy-home h1{font-size:clamp(2rem,10vw,2.5rem);line-height:1.08}
+  .career-reference.home .hero-copy-home h1{font-size:clamp(1.65rem,8vw,2.05rem);line-height:1.1}
   .career-reference.home .hero-copy-home h1 em{white-space:nowrap}
 
   .career-reference .intro-grid h2,

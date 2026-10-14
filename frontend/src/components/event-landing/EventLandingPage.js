@@ -77,11 +77,6 @@ function Hero({ page }) {
               sizes="(max-width: 980px) 100vw, 580px"
               className={hero.imageFit === 'contain' ? s.heroImgContain : s.heroImg}
             />
-            <div className={s.heroBadge}>
-              {hero.badge.map(([label, value]) => (
-                <span key={label}>{label}: <strong>{value}</strong></span>
-              ))}
-            </div>
           </div>
         </div>
         <div className={s.highlights}>

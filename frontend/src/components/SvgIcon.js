@@ -240,6 +240,14 @@ export default function SvgIcon({ name, size = 18, className = '', strokeWidth =
           <path d="M20.38 3.46 16 2l-4 3-4-3-4.38 1.46a1 1 0 0 0-.62.94v4.2a1 1 0 0 0 .62.94L6 10v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V10l2.38-.54a1 1 0 0 0 .62-.94v-4.2a1 1 0 0 0-.62-.94z" />
         </svg>
       );
+    case 'download':
+      return (
+        <svg {...commonProps}>
+          <path d="M12 4v11" />
+          <path d="m7 10 5 5 5-5" />
+          <path d="M5 20h14" />
+        </svg>
+      );
     case 'google':
       return (
         <svg viewBox="0 0 24 24" width={size} height={size} className={className} {...props}>

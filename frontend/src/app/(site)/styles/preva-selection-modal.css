@@ -254,3 +254,53 @@
     height: 46px !important;
   }
 }
+
+/* Mobile menu: call, Order Online and View Menu share one row. */
+@media (max-width: 1199px) {
+  .site-header .main-navigation .primary-menu.open {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+  }
+
+  .site-header .main-navigation .primary-menu.open > li {
+    flex: 0 0 100% !important;
+  }
+
+  .site-header .main-navigation .primary-menu.open > li.nav-call-cta,
+  .site-header .main-navigation .primary-menu.open > li.nav-order-cta,
+  .site-header .main-navigation .primary-menu.open > li.nav-selection-cta {
+    display: block !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 12px 0 0 !important;
+  }
+
+  .site-header .main-navigation .primary-menu.open > li.nav-call-cta {
+    flex: 0 0 46px !important;
+    margin-right: 8px !important;
+  }
+
+  .site-header .main-navigation .primary-menu.open > li.nav-order-cta {
+    flex: 1 1 0 !important;
+    margin-right: 8px !important;
+  }
+
+  .site-header .main-navigation .primary-menu.open > li.nav-selection-cta {
+    flex: 1 1 0 !important;
+  }
+
+  .site-header .main-navigation .primary-menu.open > li.nav-call-cta a,
+  .site-header .main-navigation .primary-menu.open > li.nav-order-cta a.preva-order-trigger,
+  .site-header .main-navigation .primary-menu.open > li.nav-selection-cta .preva-selection-trigger {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    margin: 0 !important;
+    padding: 0 8px !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.06em !important;
+    white-space: nowrap !important;
+  }
+}

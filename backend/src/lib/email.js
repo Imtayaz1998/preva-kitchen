@@ -16,7 +16,7 @@ const BRAND_PHONE  = '(313) 286-3586';
 
 // The same logo the website header shows, loaded from the live site (not
 // attached, so mail clients show it in the header only).
-const LOGO_URL = 'https://prevakitchen.com/asset/preva-kitchen-logo.webp';
+const LOGO_URL = 'https://prevakitchen.com/asset/preva-kitchen-logo-email.png';
 
 function getFromAddress() {
   const configured = String(
