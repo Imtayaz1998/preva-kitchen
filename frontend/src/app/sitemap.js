@@ -40,7 +40,8 @@ export default async function sitemap() {
     { url: `${base}/contact`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     { url: `${base}/careers`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
     { url: `${base}/reservations`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
-    { url: `${base}/catering`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
+    // TEMPORARY: /catering page hidden (drafted) for now.
+    // { url: `${base}/catering`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
     { url: `${base}/about`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
     { url: `${base}/privacy-policy`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
     { url: `${base}/terms`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },

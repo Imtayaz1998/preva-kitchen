@@ -110,7 +110,8 @@ export default function ReservationsContent() {
           </p>
           <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
             <PrimaryButton href="tel:+13132863586" icon={Phone}>Call to Plan Your Group</PrimaryButton>
-            <SecondaryButton href="/catering">Looking for catering instead?</SecondaryButton>
+            {/* TEMPORARY: /catering page hidden (drafted) for now. Original:
+            <SecondaryButton href="/catering">Looking for catering instead?</SecondaryButton> */}
           </div>
         </Card>
       </Section>

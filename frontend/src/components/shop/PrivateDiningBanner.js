@@ -30,9 +30,10 @@ export default function PrivateDiningBanner() {
           >
             Reserve Private Suite
           </button>
+          {/* TEMPORARY: /catering page hidden (drafted) for now. Original:
           <Link href="/catering" className="ps-btn ps-btn--ghost" style={{ padding: '0 24px' }}>
             View Catering Menu
-          </Link>
+          </Link> */}
         </div>
       </div>
 

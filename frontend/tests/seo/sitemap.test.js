@@ -126,7 +126,7 @@ describe('SEO guardrails: sitemap.js', () => {
     expect(urls.some((u) => u.includes('bottle-service-host'))).toBe(false);
   });
 
-  it('always includes the core indexable routes (home, menu, contact, careers, reservations, catering, about, legal pages)', async () => {
+  it('always includes the core indexable routes (home, menu, contact, careers, reservations, about, legal pages)', async () => {
     mockCmsResponses({});
     getPublishedCareerJobsMock.mockResolvedValue([]);
 
@@ -137,7 +137,7 @@ describe('SEO guardrails: sitemap.js', () => {
     // The homepage entry is `${base}` with no trailing slash (see
     // coreRoutes in sitemap.js) — every other core route appends its path.
     expect(urls, 'missing core route /').toContain(TEST_ORIGIN);
-    for (const path of ['/menu', '/contact', '/careers', '/reservations', '/catering', '/about', '/privacy-policy', '/terms', '/accessibility']) {
+    for (const path of ['/menu', '/contact', '/careers', '/reservations', '/about', '/privacy-policy', '/terms', '/accessibility']) {
       expect(urls, `missing core route ${path}`).toContain(`${TEST_ORIGIN}${path}`);
     }
   });

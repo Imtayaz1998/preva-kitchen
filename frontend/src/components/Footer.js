@@ -627,7 +627,8 @@ export default function Footer() {
               if (typeof window !== 'undefined' && window.openOrderModal) window.openOrderModal();
             }}
           >ORDER ONLINE</a>
-          <a href="/catering" className="sticky-btn">CATERING</a>
+          {/* TEMPORARY: /catering page hidden (drafted) for now. Original:
+          <a href="/catering" className="sticky-btn">CATERING</a> */}
         </div>
       )}
     </>
