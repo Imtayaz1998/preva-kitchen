@@ -65,7 +65,9 @@ const groups = [
     items: [
       { label: 'Contacts', href: '/admin/inbox?kind=contacts', icon: Inbox, permission: 'inbox' },
       { label: 'Reservations', href: '/admin/inbox?kind=reservations', icon: ListTree, permission: 'inbox' },
-      { label: 'Guest List', href: '/admin/inbox?kind=guest-list', icon: CircleUserRound, permission: 'inbox' }
+      { label: 'Event Inquiries', href: '/admin/inbox?kind=event-inquiries', icon: Inbox, permission: 'inbox' },
+      { label: 'Guest List', href: '/admin/inbox?kind=guest-list', icon: CircleUserRound, permission: 'inbox' },
+      { label: 'Newsletter', href: '/admin/inbox?kind=subscribers', icon: Inbox, permission: 'inbox' }
     ]
   },
   {

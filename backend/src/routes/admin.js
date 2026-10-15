@@ -893,7 +893,9 @@ const INBOXES = {
   contacts: 'contactEnquiry',
   reservations: 'reservation',
   'vip-requests': 'vipRequest',
-  'guest-list': 'guestListEntry'
+  'guest-list': 'guestListEntry',
+  'event-inquiries': 'eventInquiry',
+  subscribers: 'subscriber'
 };
 
 for (const [path, collection] of Object.entries(INBOXES)) {
@@ -902,7 +904,7 @@ for (const [path, collection] of Object.entries(INBOXES)) {
     const filter = {};
     const status = cleanText(query.status, 20).toUpperCase();
     if (status) filter.status = status;
-    const rows = await target.find(filter).sort({ createdAt: -1 }).limit(300).toArray();
+    const rows = await target.find(filter).sort({ createdAt: -1 }).limit(1000).toArray();
     return rows.map(serialize);
   });
 
@@ -931,12 +933,6 @@ for (const [path, collection] of Object.entries(INBOXES)) {
     return { ok: true };
   });
 }
-
-get('/admin/subscribers', { auth: true }, async () => {
-  const subscribers = await col('subscriber');
-  const rows = await subscribers.find().sort({ createdAt: -1 }).limit(1000).toArray();
-  return rows.map(serialize);
-});
 
 const CAREER_APPLICATION_STATUS = [
   'NEW', 'SCREENING', 'REVIEWING', 'INTERVIEW', 'REFERENCE_CHECK',

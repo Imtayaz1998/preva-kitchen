@@ -12,7 +12,7 @@ const BRAND_ADDRESS = '13090 Inkster Rd, Redford Township, MI 48239';
 const BRAND_PHONE = '(313) 286-3586';
 const BRAND_GOLD = '#C9A96E';
 
-const SMTP_KEYS = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'CONTACT_SMTP_USER', 'CONTACT_SMTP_PASS'];
+const SMTP_KEYS = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'CONTACT_SMTP_USER', 'CONTACT_SMTP_PASS', 'CAREER_SMTP_USER', 'CAREER_SMTP_PASS'];
 let _backendSmtpEnv;
 
 // On the server the backend's .env already holds the Gmail SMTP login (the
@@ -49,6 +49,9 @@ function backendSmtpEnv() {
  * SMTP login for a mail account. 'contact' uses the info@ mailbox
  * (CONTACT_SMTP_USER / CONTACT_SMTP_PASS) once its App Password is set;
  * until then, and for every other form, the default reservations@ login is used.
+ * 'career' uses the HR mailbox (CAREER_SMTP_USER / CAREER_SMTP_PASS) so career
+ * mail never goes through reservations@; without that password it falls back
+ * to the info@ login.
  */
 export function getSmtpConfig(account = 'default') {
   const hasOwnPass = Boolean(String(process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').trim());
@@ -59,8 +62,14 @@ export function getSmtpConfig(account = 'default') {
     ? String(env.SMTP_SECURE).toLowerCase() === 'true'
     : port === 465;
 
+  const careerPass = String(process.env.CAREER_SMTP_PASS || env.CAREER_SMTP_PASS || '').replace(/\s+/g, '').trim();
+  if (account === 'career' && careerPass) {
+    const user = String(process.env.CAREER_SMTP_USER || env.CAREER_SMTP_USER || 'donnaw@prevaclub.com').trim();
+    return { host, port, secure, user, pass: careerPass };
+  }
+
   const contactPass = String(process.env.CONTACT_SMTP_PASS || env.CONTACT_SMTP_PASS || '').replace(/\s+/g, '').trim();
-  if (account === 'contact' && contactPass) {
+  if ((account === 'contact' || account === 'career') && contactPass) {
     const user = String(process.env.CONTACT_SMTP_USER || env.CONTACT_SMTP_USER || 'info@prevakitchen.com').trim();
     return { host, port, secure, user, pass: contactPass };
   }
@@ -599,6 +608,7 @@ export async function sendCareerEmail(data) {
 
   // 1. Admin HR notification to donnaw@prevaclub.com
   const adminTask = sendMail({
+    account: 'career',
     to: recipient,
     replyTo: data.email || undefined,
     subject: `Career Application: ${candidateName} — ${position}`,
@@ -621,6 +631,7 @@ export async function sendCareerEmail(data) {
   let candidateTask = null;
   if (data.email) {
     candidateTask = sendMail({
+      account: 'career',
       to: data.email,
       replyTo: recipient,
       subject: 'Application Received - PREVA Kitchen',

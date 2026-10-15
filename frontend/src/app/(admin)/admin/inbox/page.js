@@ -11,7 +11,9 @@ import { Download, Inbox as InboxIcon, Eye, Trash2 } from 'lucide-react';
 const inboxKinds = [
   { key: 'contacts', label: 'Contact Enquiries' },
   { key: 'reservations', label: 'Reservations' },
-  { key: 'guest-list', label: 'Guest List' }
+  { key: 'event-inquiries', label: 'Event Inquiries' },
+  { key: 'guest-list', label: 'Guest List' },
+  { key: 'subscribers', label: 'Newsletter' }
 ];
 
 function InboxViewer() {
@@ -190,6 +192,22 @@ function InboxViewer() {
                       <th>Source</th>
                     </>
                   )}
+                  {kind === 'event-inquiries' && (
+                    <>
+                      <th>Name</th>
+                      <th>Event</th>
+                      <th>Guests</th>
+                      <th>Event Date</th>
+                      <th>Status</th>
+                    </>
+                  )}
+                  {kind === 'subscribers' && (
+                    <>
+                      <th>Email</th>
+                      <th>Source</th>
+                      <th>Status</th>
+                    </>
+                  )}
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -242,6 +260,30 @@ function InboxViewer() {
                       </>
                     )}
 
+                    {/* Event Inquiries Specific Layout */}
+                    {kind === 'event-inquiries' && (
+                      <>
+                        <td><b style={{ color: '#fff' }}>{row.name}</b><br /><small style={{ color: '#90a4ae' }}>{row.email} • {row.phone}</small></td>
+                        <td>{row.eventType || '—'}</td>
+                        <td><b>{row.guestCount}</b></td>
+                        <td>{row.preferredDate || '—'}</td>
+                        <td>
+                          <span className={`badge ${row.status === 'NEW' ? 'badge-draft' : 'badge-published'}`}>
+                            {row.status}
+                          </span>
+                        </td>
+                      </>
+                    )}
+
+                    {/* Newsletter Subscribers Specific Layout */}
+                    {kind === 'subscribers' && (
+                      <>
+                        <td><b style={{ color: '#fff' }}>{row.email}</b></td>
+                        <td>{row.source || 'SITE'}</td>
+                        <td>{row.status || '—'}</td>
+                      </>
+                    )}
+
                     <td>
                       <div className="table-actions">
                         <button type="button" className="btn btn-secondary" title="View details" onClick={() => setSelectedItem(row)}><Eye size={14} /></button>
@@ -283,6 +325,9 @@ function InboxViewer() {
             <div style={{ display: 'flex', gap: '8px', marginTop: '24px', justifyContent: 'flex-end' }}>
               {kind === 'contacts' && selectedItem.status === 'new' && (
                 <button type="button" className="btn" onClick={() => updateStatus(selectedItem, 'read')}>Mark as Read</button>
+              )}
+              {kind === 'event-inquiries' && selectedItem.status === 'NEW' && (
+                <button type="button" className="btn" onClick={() => updateStatus(selectedItem, 'READ')}>Mark as Read</button>
               )}
               {kind === 'reservations' && selectedItem.status === 'pending' && (
                 <>

@@ -59,15 +59,15 @@ export async function POST(request) {
 
     // 3 & 4. Concurrent DB sync & Email dispatch for instant UI response
     const backendUrl = process.env.BACKEND_URL;
-    const isDev = process.env.NODE_ENV !== 'production';
-    const shouldSyncBackend = Boolean(backendUrl && (isDev || !backendUrl.includes('localhost')));
+    // Every submission is saved to the backend so it shows up in the admin.
+    const shouldSyncBackend = Boolean(backendUrl);
 
     const dbSyncPromise = shouldSyncBackend
       ? fetch(`${backendUrl.replace(/\/$/, '')}/api/contact`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-internal-forward': 'true' },
           body: JSON.stringify({ ...body, referenceId, skipEmail: true }),
-          signal: AbortSignal.timeout(3000)
+          signal: AbortSignal.timeout(10000)
         }).catch((backendErr) => {
           console.warn('[contact] Backend DB sync notice:', backendErr.message);
         })
