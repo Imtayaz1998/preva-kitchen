@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { saveToBackend } from '@/lib/backend-sync';
 import { sendReservationEmail } from '@/lib/nodemailer';
 import { isValidEmail, INVALID_EMAIL_MESSAGE } from '@/lib/email-validation';
 
@@ -84,21 +85,12 @@ export async function POST(request) {
       submittedAt
     };
 
-    // 3 & 4. Concurrent DB sync & Email dispatch for instant UI response
-    const backendUrl = process.env.BACKEND_URL;
-    // Every submission is saved to the backend so it shows up in the admin.
-    const shouldSyncBackend = Boolean(backendUrl);
-
-    const dbSyncPromise = shouldSyncBackend
-      ? fetch(`${backendUrl.replace(/\/$/, '')}/api/reservations`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-internal-forward': 'true' },
-          body: JSON.stringify({ ...body, referenceId, skipEmail: true }),
-          signal: AbortSignal.timeout(10000)
-        }).catch((backendErr) => {
-          console.warn('[reservations] Backend DB sync notice:', backendErr.message);
-        })
-      : Promise.resolve();
+    // 3 & 4. Concurrent DB sync & Email dispatch for instant UI response.
+    // The normalized fields go to the backend (fullName/mobile/reservationDate
+    // variants are already resolved above), so it saves exactly what was emailed.
+    const dbSyncPromise = saveToBackend('/reservations', {
+      referenceId, name, phone, email, date, time, guests, occasion, notes, pageUrl
+    }, request, 'reservations');
 
     const emailPromise = sendReservationEmail(reservationData).catch((emailErr) => {
       console.warn('[reservations] Email dispatch notice:', emailErr.message);

@@ -14,6 +14,21 @@ export function isHoneypotTripped(body) {
   return Boolean(String(body?.[HONEYPOT_FIELD] ?? '').trim());
 }
 
+const headerValue = (request, name) => String(request?.headers?.get?.(name) ?? request?.headers?.[name] ?? '');
+
+/**
+ * Who actually submitted the form. The Next.js form routes (contact,
+ * reservations, careers) validate the visitor, send the emails, then forward
+ * the submission here with `x-internal-forward` so it is saved for the admin.
+ * Those forwards all arrive from the Next server's own IP, so the visitor's
+ * address travels in `x-visitor-ip` instead.
+ */
+export function formOrigin({ ip, request }) {
+  const internal = Boolean(headerValue(request, 'x-internal-forward'));
+  const visitorIp = internal ? headerValue(request, 'x-visitor-ip').split(',')[0].trim() : '';
+  return { internal, ip: visitorIp || ip };
+}
+
 const rateBuckets = new Map(); // key -> array of request timestamps (ms)
 
 /** Throws 429 once an IP exceeds `max` submissions to `routeKey` within `windowMs`. */

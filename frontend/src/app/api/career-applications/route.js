@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { saveToBackend } from '@/lib/backend-sync';
 import { sendCareerEmail } from '@/lib/nodemailer';
 import { isValidEmail, INVALID_EMAIL_MESSAGE } from '@/lib/email-validation';
 
@@ -119,21 +120,12 @@ export async function POST(request) {
       submittedAt
     };
 
-    // 4 & 5. Concurrent DB sync & Email dispatch for instant UI response
-    const backendUrl = process.env.BACKEND_URL;
+    // 4 & 5. Concurrent DB sync & Email dispatch for instant UI response.
     // Every submission is saved to the backend so it shows up in the admin.
-    const shouldSyncBackend = Boolean(backendUrl);
-
-    const dbSyncPromise = shouldSyncBackend
-      ? fetch(`${backendUrl.replace(/\/$/, '')}/api/career-applications`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-internal-forward': 'true' },
-          body: JSON.stringify({ ...body, referenceId, skipEmail: true }),
-          signal: AbortSignal.timeout(10000)
-        }).catch((backendErr) => {
-          console.warn('[career-applications] Backend DB sync notice:', backendErr.message);
-        })
-      : Promise.resolve();
+    const dbSyncPromise = saveToBackend('/career-applications', {
+      referenceId, firstName, lastName, email, phone, role, availability, startDate, message,
+      consent: true, resume, pageUrl
+    }, request, 'career-applications');
 
     const emailPromise = sendCareerEmail(applicationData).catch((emailErr) => {
       console.warn('[career-applications] Email dispatch notice:', emailErr.message);

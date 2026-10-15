@@ -79,6 +79,12 @@ get('/admin/dashboard', { auth: true }, async () => {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 8);
 
+  // Unhandled submissions across every lead form, for the sidebar's Leads badge.
+  const newLeadCounts = await Promise.all(Object.values(LEAD_SOURCES).map(async (source) => (
+    (await col(source.collection)).countDocuments({ status: { $in: ['NEW', 'new'] } }).catch(() => 0)
+  )));
+  const newLeads = newLeadCounts.reduce((sum, count) => sum + count, 0);
+
   return {
     posts,
     pages,
@@ -92,6 +98,7 @@ get('/admin/dashboard', { auth: true }, async () => {
     unreadEnquiries: newContacts,
     newReservations,
     careerApps: careerAppCount,
+    newLeads,
     recentPosts: recentPosts.map(serialize),
     recentEnquiries,
     counts: {
@@ -933,6 +940,179 @@ for (const [path, collection] of Object.entries(INBOXES)) {
     return { ok: true };
   });
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Leads — every website form submission in one feed
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// One entry per collection a public form writes to. `pick` turns a stored
+// document into the shared lead shape; anything it doesn't lift out stays in
+// `details` so no submitted field is ever hidden from the admin.
+const LEAD_SOURCES = {
+  contact: {
+    collection: 'contactEnquiry',
+    label: 'Contact',
+    pick: (row) => ({
+      name: row.name || [row.firstName, row.lastName].filter(Boolean).join(' '),
+      subject: row.subject || row.inquiry || '',
+      message: row.message || '',
+      source: row.formSource || 'Contact form'
+    }),
+    lifted: ['name', 'firstName', 'lastName', 'subject', 'inquiry', 'message', 'formSource']
+  },
+  reservation: {
+    collection: 'reservation',
+    label: 'Reservation',
+    pick: (row) => ({
+      subject: [row.date, row.time, row.guests ? `${row.guests} guests` : '', row.occasion].filter(Boolean).join(' · '),
+      message: row.notes || '',
+      source: 'Reservation form'
+    }),
+    lifted: ['notes']
+  },
+  event: {
+    collection: 'eventInquiry',
+    label: 'Event inquiry',
+    pick: (row) => ({
+      subject: [row.eventType || row.useCase, row.preferredDate, row.guestCount ? `${row.guestCount} guests` : ''].filter(Boolean).join(' · '),
+      message: row.message || '',
+      source: row.landingPage ? `Event page · ${row.landingPage}` : 'Event inquiry form'
+    }),
+    lifted: ['message']
+  },
+  career: {
+    collection: 'careerApplications',
+    label: 'Career application',
+    pick: (row, ctx) => ({
+      name: [row.firstName, row.lastName].filter(Boolean).join(' '),
+      subject: ctx.roleNames[row.role] || row.role || 'General application',
+      message: row.message || '',
+      source: row.sourceChannel || row.source || 'Careers page'
+    }),
+    lifted: ['firstName', 'lastName', 'message', 'sourceChannel', 'source', 'resume', 'history', 'screening', 'interview', 'references', 'onboarding', 'internalNotes']
+  },
+  newsletter: {
+    collection: 'subscriber',
+    label: 'Newsletter',
+    pick: (row) => ({ subject: 'Newsletter sign-up', source: row.source || 'Newsletter form' }),
+    lifted: ['source']
+  },
+  vip: {
+    collection: 'vipRequest',
+    label: 'VIP request',
+    pick: (row) => ({
+      subject: [row.date, row.guests ? `${row.guests} guests` : '', row.occasion].filter(Boolean).join(' · '),
+      message: row.notes || '',
+      source: 'VIP request form'
+    }),
+    lifted: ['notes']
+  },
+  'guest-list': {
+    collection: 'guestListEntry',
+    label: 'Guest list',
+    pick: (row) => ({
+      subject: [row.eventDate, row.guests ? `${row.guests} guests` : ''].filter(Boolean).join(' · '),
+      message: row.notes || '',
+      source: 'Guest list form'
+    }),
+    lifted: ['notes']
+  }
+};
+
+const LEAD_COMMON_FIELDS = ['_id', 'name', 'email', 'phone', 'status', 'createdAt', 'updatedAt', 'pageUrl'];
+const INBOX_LEAD_STATUS = ['NEW', 'READ', 'CONFIRMED', 'ARCHIVED'];
+
+function leadDetails(row, lifted) {
+  const skip = new Set([...LEAD_COMMON_FIELDS, ...lifted]);
+  const details = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (skip.has(key) || value === null || value === undefined || value === '') continue;
+    details[key] = value instanceof Date ? value.toISOString() : value;
+  }
+  return details;
+}
+
+function toLead(type, row, ctx) {
+  const source = LEAD_SOURCES[type];
+  const picked = source.pick(row, ctx);
+  return {
+    id: String(row._id),
+    type,
+    typeLabel: source.label,
+    name: picked.name ?? row.name ?? '',
+    email: row.email || '',
+    phone: row.phone || '',
+    subject: picked.subject || '',
+    message: picked.message || '',
+    source: picked.source,
+    pageUrl: row.pageUrl || '',
+    status: String(row.status || 'NEW').toUpperCase(),
+    createdAt: row.createdAt || null,
+    updatedAt: row.updatedAt || null,
+    resume: type === 'career' && row.resume ? { name: row.resume.name, mimeType: row.resume.mimeType, size: row.resume.size } : null,
+    details: leadDetails(row, source.lifted)
+  };
+}
+
+function leadSource(type) {
+  const source = LEAD_SOURCES[type];
+  if (!source) throw notFound('Unknown lead type.');
+  return source;
+}
+
+get('/admin/leads', { auth: true, roles: MANAGE }, async () => {
+  const jobs = await careerJobsCollection();
+  const jobRows = await jobs.find({}, { projection: { slug: 1, title: 1 } }).toArray();
+  const ctx = { roleNames: { 'general-application': 'General application', ...Object.fromEntries(jobRows.map((job) => [job.slug, job.title])) } };
+
+  const groups = await Promise.all(Object.entries(LEAD_SOURCES).map(async ([type, source]) => {
+    const target = await col(source.collection);
+    // The CV bytes stay in Mongo; the list only needs the file's name and size.
+    const rows = await target.find({}, { projection: { 'resume.data': 0 } }).sort({ createdAt: -1 }).limit(5000).toArray();
+    return rows.map((row) => toLead(type, row, ctx));
+  }));
+
+  const leads = groups.flat().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  return {
+    leads,
+    types: Object.fromEntries(Object.entries(LEAD_SOURCES).map(([type, source]) => [type, source.label])),
+    statuses: { inbox: INBOX_LEAD_STATUS, career: CAREER_APPLICATION_STATUS }
+  };
+});
+
+put('/admin/leads/:type/:id/status', { auth: true, roles: MANAGE }, async (ctx) => {
+  const source = leadSource(ctx.params.type);
+  const status = cleanText(ctx.body?.status, 20).toUpperCase();
+  const allowed = ctx.params.type === 'career' ? CAREER_APPLICATION_STATUS : INBOX_LEAD_STATUS;
+  if (!allowed.includes(status)) throw badRequest('That is not a valid status.');
+
+  const target = await col(source.collection);
+  const id = asObjectId(ctx.params.id);
+  const current = id ? await target.findOne({ _id: id }, { projection: { 'resume.data': 0 } }) : null;
+  if (!current) throw notFound('Lead not found.');
+
+  const now = new Date();
+  const update = { $set: { status, updatedAt: now } };
+  if (ctx.params.type === 'career') {
+    if (status !== 'NEW' && !current.firstContactAt) update.$set.firstContactAt = now;
+    update.$push = { history: { $each: [{ at: now, by: ctx.user.email, action: `Status changed from ${current.status} to ${status}` }], $slice: -100 } };
+  }
+  await target.updateOne({ _id: id }, update);
+  await logActivity(ctx, 'UPDATE', 'LEAD', `${source.label} ${ctx.params.id} → ${status}`);
+  return { ok: true, status, updatedAt: now };
+});
+
+del('/admin/leads/:type/:id', { auth: true, roles: MANAGE }, async (ctx) => {
+  const source = leadSource(ctx.params.type);
+  const target = await col(source.collection);
+  const id = asObjectId(ctx.params.id);
+  if (!id) throw notFound('Lead not found.');
+
+  const removed = await target.deleteOne({ _id: id });
+  if (!removed.deletedCount) throw notFound('Lead not found.');
+  await logActivity(ctx, 'DELETE', 'LEAD', `${source.label} ${ctx.params.id}`);
+  return { ok: true };
+});
 
 const CAREER_APPLICATION_STATUS = [
   'NEW', 'SCREENING', 'REVIEWING', 'INTERVIEW', 'REFERENCE_CHECK',

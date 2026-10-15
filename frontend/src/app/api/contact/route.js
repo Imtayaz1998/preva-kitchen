@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { saveToBackend } from '@/lib/backend-sync';
 import { sendContactEmail } from '@/lib/nodemailer';
 import { isValidEmail, INVALID_EMAIL_MESSAGE } from '@/lib/email-validation';
 
@@ -57,21 +58,11 @@ export async function POST(request) {
       submittedAt
     };
 
-    // 3 & 4. Concurrent DB sync & Email dispatch for instant UI response
-    const backendUrl = process.env.BACKEND_URL;
+    // 3 & 4. Concurrent DB sync & Email dispatch for instant UI response.
     // Every submission is saved to the backend so it shows up in the admin.
-    const shouldSyncBackend = Boolean(backendUrl);
-
-    const dbSyncPromise = shouldSyncBackend
-      ? fetch(`${backendUrl.replace(/\/$/, '')}/api/contact`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-internal-forward': 'true' },
-          body: JSON.stringify({ ...body, referenceId, skipEmail: true }),
-          signal: AbortSignal.timeout(10000)
-        }).catch((backendErr) => {
-          console.warn('[contact] Backend DB sync notice:', backendErr.message);
-        })
-      : Promise.resolve();
+    const dbSyncPromise = saveToBackend('/contact', {
+      ...body, referenceId, name, email, phone, subject, message, pageUrl
+    }, request, 'contact');
 
     const emailPromise = sendContactEmail(contactData).catch((emailErr) => {
       console.warn('[contact] Email dispatch notice:', emailErr.message);

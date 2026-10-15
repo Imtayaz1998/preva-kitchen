@@ -9,7 +9,7 @@ import GallerySection from './sections/GallerySection';
 import GoogleReviewsSection from './sections/GoogleReviewsSection';
 import NewsletterSection from './sections/NewsletterSection';
 import SvgIcon from './SvgIcon';
-import { showSuccess } from '../lib/swal';
+import { showError, showSuccess } from '../lib/swal';
 import { rewriteLegacyBlogLinks } from '../lib/blog-links';
 
 export default function PageBuilder({ sections = [], fallbackContent = '' }) {
@@ -530,27 +530,77 @@ function GridBlock({ data }) {
   );
 }
 
+// CMS forms have admin-defined fields, so the contact essentials are picked out
+// by field type / label and everything else goes into the message. It is sent
+// through the same /api/contact route as the contact page, so it is emailed
+// and lands in the admin Leads page.
+function buildFormBlockPayload(fields, values, title) {
+  const entries = fields.map((field, index) => ({ field, value: String(values.get(`field_${index}`) || '').trim() }));
+  const find = (test) => entries.find(({ field, value }) => value && test(field));
+  const email = find((f) => f.type === 'email' || /e-?mail/i.test(f.label || ''));
+  const phone = find((f) => f.type === 'tel' || /phone|mobile/i.test(f.label || ''));
+  const name = find((f) => /name/i.test(f.label || '') && f.type !== 'email');
+  const used = new Set([email, phone, name]);
+  const rest = entries.filter((entry) => entry.value && !used.has(entry));
+  const message = rest.map(({ field, value }) => (rest.length === 1 && field.type === 'textarea' ? value : `${field.label || 'Field'}: ${value}`)).join('\n');
+  return {
+    name: name?.value || email?.value || '',
+    email: email?.value || '',
+    phone: phone?.value || '',
+    subject: title || 'Website form',
+    message: message || `Submitted the "${title || 'website'}" form.`,
+    formSource: `Website form · ${title || 'CMS page'}`.slice(0, 60),
+    pageUrl: window.location.href,
+    hp_field: values.get('hp_field') || ''
+  };
+}
+
 function FormBlock({ data }) {
   const fields = data.fields || [];
+  const [sending, setSending] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = buildFormBlockPayload(fields, new FormData(form), data.formTitle);
+    if (!payload.email) {
+      showError('Email needed', 'Please include your email address so our team can reply.');
+      return;
+    }
+    setSending(true);
+    try {
+      const response = await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.message || 'We could not send your enquiry.');
+      showSuccess('Enquiry received', 'Thanks for contacting Preva Kitchen. Our team will follow up shortly.');
+      form.reset();
+    } catch (error) {
+      showError('Not sent', `${error.message} Please call (313) 286-3586.`);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <section style={{ padding: '60px 20px', background: '#0e0c0a' }}>
       <div style={{ maxWidth: '700px', margin: '0 auto', background: '#161412', padding: '40px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
         {data.formTitle && <h2 style={{ color: '#fff', fontSize: '1.8rem', textAlign: 'center', marginBottom: '8px' }}>{data.formTitle}</h2>}
         {data.formDesc && <p style={{ color: '#aaa', textAlign: 'center', marginBottom: '30px' }}>{data.formDesc}</p>}
-        <form onSubmit={(e) => { e.preventDefault(); showSuccess('Enquiry received', 'Thanks for contacting Preva Kitchen. Our team will follow up shortly.'); e.currentTarget.reset(); }}>
+        <form onSubmit={handleSubmit}>
+          <input type="text" name="hp_field" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }} />
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {fields.map((f) => (
+            {fields.map((f, index) => (
               <div key={f.id || f.label}>
-                <label style={{ display: 'block', color: '#ccc', marginBottom: '8px', fontSize: '0.9rem' }}>{f.label}</label>
+                <label htmlFor={`cms-form-${index}`} style={{ display: 'block', color: '#ccc', marginBottom: '8px', fontSize: '0.9rem' }}>{f.label}</label>
                 {f.type === 'textarea' ? (
-                  <textarea rows={4} placeholder={f.placeholder} required={f.required} style={{ width: '100%', padding: '12px', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff' }} />
+                  <textarea id={`cms-form-${index}`} name={`field_${index}`} rows={4} placeholder={f.placeholder} required={f.required} style={{ width: '100%', padding: '12px', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff' }} />
                 ) : (
-                  <input type={f.type || 'text'} placeholder={f.placeholder} required={f.required} style={{ width: '100%', padding: '12px', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff' }} />
+                  <input id={`cms-form-${index}`} name={`field_${index}`} type={f.type || 'text'} placeholder={f.placeholder} required={f.required} style={{ width: '100%', padding: '12px', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff' }} />
                 )}
               </div>
             ))}
-            <button type="submit" style={{ padding: '14px 28px', background: 'linear-gradient(135deg, #c5a059 0%, #9e7b39 100%)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}>
-              {data.submitLabel || 'Submit'}
+            <button type="submit" disabled={sending} style={{ padding: '14px 28px', background: 'linear-gradient(135deg, #c5a059 0%, #9e7b39 100%)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: sending ? 'wait' : 'pointer', opacity: sending ? 0.7 : 1, marginTop: '10px' }}>
+              {sending ? 'Sending…' : (data.submitLabel || 'Submit')}
             </button>
           </div>
         </form>

@@ -64,7 +64,7 @@ export function Eyebrow({ children, icon: Icon, style }) {
   );
 }
 
-export function PageHero({ eyebrow, eyebrowIcon, title, titleAccent, subtitle, children }) {
+export function PageHero({ eyebrow, eyebrowIcon, title, titleAccent, subtitle, titleSize, children }) {
   return (
     <section
       style={{
@@ -79,7 +79,7 @@ export function PageHero({ eyebrow, eyebrowIcon, title, titleAccent, subtitle, c
         <h1
           style={{
             fontFamily,
-            fontSize: 'clamp(2.4rem, 4.4vw, 3.9rem)',
+            fontSize: titleSize || 'clamp(2.4rem, 4.4vw, 3.9rem)',
             lineHeight: 1.12,
             color: '#fff',
             fontWeight: 600,
@@ -118,14 +118,14 @@ export function Section({ id, bg, borderBottom, padding = '80px 0', children, st
   );
 }
 
-export function SectionHeading({ eyebrow, eyebrowIcon, title, titleAccent, align = 'left', description }) {
+export function SectionHeading({ eyebrow, eyebrowIcon, title, titleAccent, align = 'left', description, titleSize }) {
   return (
     <div style={{ textAlign: align, marginBottom: '44px', maxWidth: align === 'center' ? '720px' : '820px', marginLeft: align === 'center' ? 'auto' : undefined, marginRight: align === 'center' ? 'auto' : undefined }}>
       {eyebrow ? <Eyebrow icon={eyebrowIcon} style={{ justifyContent: align === 'center' ? 'center' : 'flex-start' }}>{eyebrow}</Eyebrow> : null}
       <h2
         style={{
           fontFamily,
-          fontSize: 'clamp(2rem, 3.4vw, 2.9rem)',
+          fontSize: titleSize || 'clamp(2rem, 3.4vw, 2.9rem)',
           color: '#fff',
           lineHeight: 1.14,
           margin: '0 0 14px',

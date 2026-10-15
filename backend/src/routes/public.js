@@ -15,7 +15,7 @@ import {
   buildReferenceId
 } from '../lib/email.js';
 import {
-  isHoneypotTripped, enforceRateLimit, getIdempotentResponse, rememberIdempotentResponse
+  isHoneypotTripped, enforceRateLimit, getIdempotentResponse, rememberIdempotentResponse, formOrigin
 } from '../lib/formGuard.js';
 import { rewriteLegacyBlogLinks, blogCanonical } from '../lib/blog-links.js';
 
@@ -771,9 +771,13 @@ async function storeEnquiry(collectionName, refPrefix, document, { action, entit
   return { ok: true, referenceId };
 }
 
-post('/reservations', async ({ body, ip, request }) => {
+post('/reservations', async ({ body, ip: rawIp, request }) => {
   if (isHoneypotTripped(body)) return { ok: true, referenceId: null }; // silent no-op for bots
-  enforceRateLimit('reservations', ip);
+  // A forward from the Next.js form route has already been validated and
+  // emailed to the restaurant, so it is always saved — otherwise the team gets
+  // an email for a booking the admin never shows.
+  const { internal, ip } = formOrigin({ ip: rawIp, request });
+  if (!internal) enforceRateLimit('reservations', ip);
 
   const name = cleanText(body?.name, 120);
   const phone = cleanText(body?.phone, 40);
@@ -786,11 +790,12 @@ post('/reservations', async ({ body, ip, request }) => {
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw badRequest('Enter a valid email address.');
   const parsedDate = new Date(`${date}T00:00:00.000Z`);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date) {
+  if (!internal && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date)) {
     throw badRequest('Enter a valid reservation date.');
   }
-  if (!Number.isInteger(guests) || guests < 1 || guests > 20) {
-    throw badRequest('Guests must be a whole number between 1 and 20.');
+  // Same 1–30 range the public reservation form route accepts.
+  if (!Number.isInteger(guests) || guests < 1 || guests > 30) {
+    throw badRequest('Guests must be a whole number between 1 and 30.');
   }
 
   const doc = {
@@ -844,9 +849,11 @@ post('/vip-requests', async ({ body, ip }) => {
   );
 });
 
-post('/contact', async ({ body, ip, request }) => {
+post('/contact', async ({ body, ip: rawIp, request }) => {
   if (isHoneypotTripped(body)) return { ok: true, referenceId: null };
-  enforceRateLimit('contact', ip);
+  // Forwards from the Next.js contact route were already emailed; always save them.
+  const { internal, ip } = formOrigin({ ip: rawIp, request });
+  if (!internal) enforceRateLimit('contact', ip);
 
   const name = cleanText(body?.name, 120);
   const email = cleanEmail(body?.email);
@@ -858,7 +865,7 @@ post('/contact', async ({ body, ip, request }) => {
     name,
     email,
     phone: cleanText(body?.phone, 40),
-    subject: cleanText(body?.subject, 200),
+    subject: cleanText(body?.subject || body?.inquiry, 200),
     message,
     formSource: cleanText(body?.formSource, 60) || 'CONTACT'
   };
@@ -908,10 +915,17 @@ const RESUME_TYPES = new Set([
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 ]);
+const RESUME_EXTENSION_TYPES = {
+  pdf: 'application/pdf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+};
 
-post('/career-applications', async ({ body, ip, request }) => {
+post('/career-applications', async ({ body, ip: rawIp, request }) => {
   if (isHoneypotTripped(body)) return result({ ok: true }, { status: 201 });
-  enforceRateLimit('career-applications', ip);
+  // Forwards from the Next.js careers route were already emailed (with the CV); always save them.
+  const { internal, ip } = formOrigin({ ip: rawIp, request });
+  if (!internal) enforceRateLimit('career-applications', ip);
 
   const firstName = cleanText(body?.firstName, 80);
   const lastName = cleanText(body?.lastName, 80);
@@ -928,8 +942,11 @@ post('/career-applications', async ({ body, ip, request }) => {
   if (role !== 'general-application') {
     const jobs = await careerJobsCollection();
     const openJob = await jobs.findOne({ slug: role, status: 'PUBLISHED' });
-    if (!openJob) throw badRequest('Please select a currently published role.');
-    position = cleanText(openJob.title, 120) || role;
+    // A visitor can submit just after a role is closed; the Next route has
+    // already emailed that application, so keep it rather than drop it.
+    const anyJob = openJob || (internal ? await jobs.findOne({ slug: role }) : null);
+    if (!openJob && !internal) throw badRequest('Please select a currently published role.');
+    position = cleanText(anyJob?.title, 120) || role.replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
   if (body?.consent !== true) throw badRequest('Consent is required before submitting.');
   if (!body?.resume) throw badRequest('Résumé / CV is required. Please upload your résumé (PDF, DOC, or DOCX).');
@@ -941,17 +958,21 @@ post('/career-applications', async ({ body, ip, request }) => {
   let resume = null;
   if (body?.resume) {
     const name = cleanText(body.resume.name, 180);
-    const mimeType = cleanText(body.resume.type, 120).toLowerCase();
     const declaredSize = Number(body.resume.size) || 0;
     const encoded = String(body.resume.data || '');
-    const match = encoded.match(/^data:([^;,]+);base64,([A-Za-z0-9+/=]+)$/);
-    const extensionAllowed = /\.(pdf|doc|docx)$/i.test(name);
+    // Some browsers report an empty or generic type (application/octet-stream)
+    // for Word files, so the type falls back to the file extension.
+    const match = encoded.match(/^data:[^,]*;base64,([A-Za-z0-9+/=\s]+)$/);
+    const extension = (name.match(/\.(pdf|docx?)$/i)?.[1] || '').toLowerCase();
+    const mimeType = RESUME_TYPES.has(cleanText(body.resume.type, 120).toLowerCase())
+      ? cleanText(body.resume.type, 120).toLowerCase()
+      : RESUME_EXTENSION_TYPES[extension] || '';
 
-    if (!name || !match || !RESUME_TYPES.has(mimeType) || !extensionAllowed) {
+    if (!name || !match || !mimeType) {
       throw badRequest('Resume must be a PDF, DOC, or DOCX file.');
     }
 
-    const bytes = Buffer.from(match[2], 'base64');
+    const bytes = Buffer.from(match[1], 'base64');
     if (!bytes.length || bytes.length > 3 * 1024 * 1024 || declaredSize > 3 * 1024 * 1024) {
       throw badRequest('Resume must be 3 MB or smaller.');
     }
@@ -972,6 +993,7 @@ post('/career-applications', async ({ body, ip, request }) => {
     resume,
     source: 'PREVA_CAREERS_SITE',
     sourceChannel: 'Preva careers website',
+    pageUrl: cleanText(body?.pageUrl, 300) || null,
     status: 'NEW',
     responseDueAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
     firstContactAt: null,
@@ -1016,15 +1038,16 @@ post('/career-applications', async ({ body, ip, request }) => {
   return response;
 });
 
-post('/subscribe', async ({ body }) => {
+post('/subscribe', async ({ body, request }) => {
   const email = cleanEmail(body?.email);
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw badRequest('Enter a valid email address.');
 
+  const pageUrl = cleanText(body?.pageUrl, 300) || cleanText(request?.headers?.referer, 300) || null;
   const subscribers = await col('subscriber');
   await subscribers.updateOne(
     { email },
     {
-      $set: { email, source: cleanText(body?.source, 60) || 'SITE', updatedAt: new Date() },
+      $set: { email, source: cleanText(body?.source, 60) || 'SITE', pageUrl, updatedAt: new Date() },
       $setOnInsert: { createdAt: new Date(), status: 'SUBSCRIBED' }
     },
     { upsert: true }

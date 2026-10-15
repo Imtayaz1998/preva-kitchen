@@ -273,9 +273,10 @@ export default function BookingSection() {
             <div className="pk-ref-booking-split-right">
               <div className="pk-ref-booking-media">
                 <img
-                  src="/asset/reservation-dining.jpg?v=diverse-neighborhood-dining-v2"
+                  src="/asset/reservation-dining.webp"
                   alt="Guests enjoying dinner together at Preva Kitchen in Redford Township"
                   className="pk-ref-booking-img"
+                  loading="lazy"
                 />
                 <div className="pk-ref-booking-media-overlay" />
                 <div className="pk-ref-booking-media-badge">

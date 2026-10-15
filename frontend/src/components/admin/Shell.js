@@ -125,7 +125,8 @@ export default function Shell({ children }) {
         setBadges({
           newContacts: data.unreadEnquiries ?? data.counts?.newContacts ?? 0,
           newReservations: data.newReservations ?? data.counts?.newReservations ?? 0,
-          careerApps: data.careerApps ?? data.counts?.careerApps ?? 0
+          careerApps: data.careerApps ?? data.counts?.careerApps ?? 0,
+          newLeads: data.newLeads ?? 0
         });
       } catch (e) {}
     };

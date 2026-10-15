@@ -15,6 +15,7 @@ import {
   Images,
   Inbox,
   LayoutDashboard,
+  Magnet,
   LayoutGrid,
   ListTree,
   LogOut,
@@ -63,6 +64,7 @@ const groups = [
   {
     label: 'Inbox',
     items: [
+      { label: 'Leads', href: '/admin/leads', icon: Magnet, permission: 'inbox' },
       { label: 'Contacts', href: '/admin/inbox?kind=contacts', icon: Inbox, permission: 'inbox' },
       { label: 'Reservations', href: '/admin/inbox?kind=reservations', icon: ListTree, permission: 'inbox' },
       { label: 'Event Inquiries', href: '/admin/inbox?kind=event-inquiries', icon: Inbox, permission: 'inbox' },
@@ -102,6 +104,7 @@ export default function AdminSidebar({
   onLogout
 }) {
   const getBadgeCount = (href) => {
+    if (href === '/admin/leads') return badges.newLeads || 0;
     if (href === '/admin/inbox?kind=contacts') return badges.newContacts || badges.unreadEnquiries || 0;
     if (href === '/admin/inbox?kind=reservations') return badges.newReservations || 0;
     if (href === '/admin/career-applications') return badges.careerApps || 0;

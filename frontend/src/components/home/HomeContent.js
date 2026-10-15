@@ -28,7 +28,7 @@ const restaurantGalleryImages = [
     caption: 'Preva Burger'
   },
   {
-    src: '/asset/gallery/STEAK02.jpg',
+    src: '/asset/gallery/STEAK02.webp',
     caption: 'Steak Bites'
   },
   {
@@ -36,11 +36,11 @@ const restaurantGalleryImages = [
     caption: 'Lobster Bites'
   },
   {
-    src: '/asset/gallery/RASTA05.jpg',
+    src: '/asset/gallery/RASTA05.webp',
     caption: 'Rasta Pasta'
   },
   {
-    src: '/asset/gallery/CATFISH01.jpg',
+    src: '/asset/gallery/CATFISH01.webp',
     caption: 'Catfish Bites'
   }
 ];
@@ -50,11 +50,20 @@ const HERO_IMAGE_SLIDE_DELAY = 2000;
 // The hero background cycles through the intro video, then the three dish
 // photos, then back to the video — one rotation, one set of dots, all inside
 // the hero itself (not a separate section further down the page).
+// The video is a full-quality 1080p re-encode (~13 MB) of
+// /asset/Video/1080-PASTA.mp4 (49 MB), which was too heavy to stream.
 const heroSlides = [
-  { type: 'video', src: '/asset/Video/1080-PASTA.mp4', poster: '/asset/home-reference/preva-restaurant-hero.png', name: 'Preva Kitchen' },
-  { type: 'image', image: '/asset/home-reference/preva-restaurant-hero.png?v=restaurant-slider', mobileImage: '/asset/home-reference/preva-restaurant-hero-mobile.jpg', name: 'Preva Lamb Chops' },
-  { type: 'image', image: '/asset/home-reference/preva-rasta-pasta-hero.png?v=dish-size-match-v2', mobileImage: '/asset/home-reference/preva-rasta-pasta-hero-mobile.jpg', name: 'Preva Rasta Pasta' },
-  { type: 'image', image: '/asset/home-reference/preva-burger-hero.png?v=dish-size-match-v2', mobileImage: '/asset/home-reference/preva-burger-hero-mobile.jpg', name: 'Preva Burger' }
+  {
+    type: 'video',
+    sources: [
+      { src: '/asset/Video/hero-pasta-1080.mp4', type: 'video/mp4' }
+    ],
+    poster: '/asset/home-reference/preva-restaurant-hero.webp',
+    name: 'Preva Kitchen'
+  },
+  { type: 'image', image: '/asset/home-reference/preva-restaurant-hero.webp', mobileImage: '/asset/home-reference/preva-restaurant-hero-mobile.webp', name: 'Preva Lamb Chops' },
+  { type: 'image', image: '/asset/home-reference/preva-rasta-pasta-hero.webp', mobileImage: '/asset/home-reference/preva-rasta-pasta-hero-mobile.webp', name: 'Preva Rasta Pasta' },
+  { type: 'image', image: '/asset/home-reference/preva-burger-hero.webp', mobileImage: '/asset/home-reference/preva-burger-hero-mobile.webp', name: 'Preva Burger' }
 ];
 
 
@@ -130,6 +139,19 @@ export default function Home({ menuProducts = [] }) {
   // The 1080p hero video is the main mobile LCP cost, so phones (like Data
   // Saver / slow-connection visitors) get the poster still instead of the video.
   const skipVideo = saveData || isMobile;
+  // The video and the off-screen slide photos only start downloading once the
+  // page has finished loading, so they never compete with the poster (LCP).
+  const [heroAssetsReady, setHeroAssetsReady] = useState(false);
+
+  useEffect(() => {
+    const markReady = () => setHeroAssetsReady(true);
+    if (document.readyState === 'complete') {
+      markReady();
+      return undefined;
+    }
+    window.addEventListener('load', markReady, { once: true });
+    return () => window.removeEventListener('load', markReady);
+  }, []);
 
   useEffect(() => {
     const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -178,13 +200,14 @@ export default function Home({ menuProducts = [] }) {
   useEffect(() => {
     const videoEl = heroVideoRef.current;
     if (!videoEl) return;
-    if (activeHeroSlide === 0 && !reduceMotion && !skipVideo) {
+    if (activeHeroSlide === 0 && !reduceMotion && !skipVideo && heroAssetsReady) {
+      videoEl.muted = true;
       videoEl.currentTime = 0;
       videoEl.play().catch(() => {});
     } else {
       videoEl.pause();
     }
-  }, [activeHeroSlide, reduceMotion, skipVideo]);
+  }, [activeHeroSlide, reduceMotion, skipVideo, heroAssetsReady]);
 
   // On a metered connection the video slide would otherwise sit frozen on
   // its poster forever (it normally advances itself via onEnded once
@@ -214,11 +237,13 @@ export default function Home({ menuProducts = [] }) {
                 aria-hidden={index !== activeHeroSlide}
                 muted
                 playsInline
-                preload={skipVideo ? 'none' : 'metadata'}
+                preload="none"
                 poster={slide.poster}
                 onEnded={() => { if (!reduceMotion) setActiveHeroSlide((current) => (current + 1) % heroSlides.length); }}
               >
-                <source src={slide.src} type="video/mp4" />
+                {slide.sources.map((source) => (
+                  <source key={source.src} src={source.src} type={source.type} />
+                ))}
               </video>
             ) : (
               <div
@@ -227,7 +252,9 @@ export default function Home({ menuProducts = [] }) {
                 role="img"
                 aria-label={index === activeHeroSlide ? `${slide.name}, featured dish` : undefined}
                 aria-hidden={index !== activeHeroSlide}
-                style={{ backgroundImage: `url(${isMobile ? slide.mobileImage : slide.image})` }}
+                style={heroAssetsReady || index === activeHeroSlide
+                  ? { backgroundImage: `url(${isMobile ? slide.mobileImage : slide.image})` }
+                  : undefined}
               />
             )
           )}

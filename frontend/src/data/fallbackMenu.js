@@ -600,5 +600,9 @@ export function getFallbackProduct(slug) {
 
 export function getFallbackRelated(product, count = 3) {
   if (!product) return FALLBACK_PRODUCTS.slice(0, count);
-  return FALLBACK_PRODUCTS.filter((p) => p.slug !== product.slug && (p.category === product.category || p.featured)).slice(0, count);
+  // Same-category dishes first ("More <Category>"), then featured items to fill.
+  const others = FALLBACK_PRODUCTS.filter((p) => p.slug !== product.slug);
+  const sameCategory = others.filter((p) => p.category === product.category);
+  const featured = others.filter((p) => p.category !== product.category && p.featured);
+  return [...sameCategory, ...featured].slice(0, count);
 }

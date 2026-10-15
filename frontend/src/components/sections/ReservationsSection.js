@@ -70,6 +70,7 @@ export default function ReservationsSection({ activeTab: controlledTab, setActiv
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          pageUrl: typeof window !== 'undefined' ? window.location.href : '',
           name: dining.name,
           fullName: dining.name,
           phone: dining.phone,
@@ -112,6 +113,7 @@ export default function ReservationsSection({ activeTab: controlledTab, setActiv
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          pageUrl: typeof window !== 'undefined' ? window.location.href : '',
           name: event.name,
           fullName: event.name,
           phone: event.phone,

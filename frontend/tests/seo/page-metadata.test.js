@@ -17,6 +17,7 @@
 import { describe, it, expect } from 'vitest';
 import { pageMetadata, truncateAtWord } from '@/lib/seo';
 import { dishImage } from '@/lib/dish-images';
+import { getDishMetaDescription } from '@/lib/dish-detail-content';
 import { readSource, extractCallArgs, extractConstValue, extractStatementSource, evalExpression } from '../helpers/sourceExtract.js';
 import { srcPath } from '../helpers/paths.js';
 import { FIXTURE_PRODUCT, FIXTURE_JOB } from '../helpers/fixtures.js';
@@ -102,12 +103,12 @@ describe('SEO guardrails: dynamic indexable pages (fixture data)', () => {
     const source = readSource(file);
 
     // generateMetadata() computes `description` in a statement above the
-    // pageMetadata({...}) call (a ternary on product.description) — extract
+    // pageMetadata({...}) call (via getDishMetaDescription) — extract
     // and evaluate that first so the real formula runs against fixture data,
     // then make it available when evaluating the pageMetadata() args.
     const descriptionSrc = extractStatementSource(source, 'description');
     expect(descriptionSrc, 'expected a "const description = ...;" statement in shop/[slug]/page.js').toBeTruthy();
-    const description = evalExpression(descriptionSrc, { product: FIXTURE_PRODUCT });
+    const description = evalExpression(descriptionSrc, { product: FIXTURE_PRODUCT, getDishMetaDescription });
 
     const argsSrc = extractCallArgs(source, 'pageMetadata');
     expect(argsSrc, 'expected a pageMetadata({...}) call in shop/[slug]/page.js').toBeTruthy();

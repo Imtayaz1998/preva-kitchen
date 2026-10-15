@@ -1,3 +1,5 @@
+import { truncateAtWord } from './seo';
+
 const LOCATION = 'Preva Kitchen, 13090 Inkster Rd, Redford Township, MI 48239';
 const HOURS = 'Monday through Friday from 11:00 AM to 3:30 PM';
 
@@ -354,11 +356,11 @@ function pairingsFor(dish, profile) {
 
 export function getDefaultAboutTitle(dish) {
   const content = profileFor(dish) || fallbackFor(dish);
-  return `About ${dish?.name || 'this dish'} — ${content.title}`;
+  return `About ${dish?.name ? getDishDisplayName(dish) : 'this dish'} — ${content.title}`;
 }
 
 export function getDefaultAboutParagraphs(dish) {
-  const name = dish?.name || 'This dish';
+  const name = dish?.name ? getDishDisplayName(dish) : 'This dish';
   const price = dish?.price ? ` for ${dish.price}` : '';
   const description = String(dish?.description || `${name} is prepared fresh by the Preva kitchen.`).trim();
   const content = profileFor(dish) || fallbackFor(dish);
@@ -403,29 +405,60 @@ export function splitAboutLinks(paragraph) {
 }
 
 // "Lamb Chops", "Shrimp Tacos", "Fries" take plural verbs; "Rasta Pasta" does not.
-function isPluralName(name) {
+export function isPluralName(name) {
   const lastWord = String(name || '').trim().split(/\s+/).pop() || '';
   return /s$/i.test(lastWord) && !/(ss|us|is)$/i.test(lastWord);
 }
 
+// Wing flavor dishes are named after the sauce ("Buffalo", "BBQ"), so generated
+// copy reads "Buffalo Wings" instead of "the Buffalo".
+export function getDishDisplayName(dish) {
+  const name = String(dish?.name || '').trim();
+  if (!name) return 'this dish';
+  const isWingDish = /wing/i.test(String(dish?.category || '')) || WING_FLAVOR_LINKS.some((flavor) => flavor.slug === dish?.slug);
+  return isWingDish && !/wing/i.test(name) ? `${name} Wings` : name;
+}
+
+// "the Lamb Chops" but "Preva Lamb Chops" — never "the Preva X at Preva Kitchen".
+export function withDishArticle(name, { capitalize = false } = {}) {
+  if (/^preva\b/i.test(name)) return name;
+  return `${capitalize ? 'The' : 'the'} ${name}`;
+}
+
+const META_DESCRIPTION_MAX = 155;
+const DISH_META_CLOSER = 'Order pickup or delivery from Preva Kitchen in Redford Township, MI.';
+
+// Meta description that always ends on the full closing sentence; only the
+// dish description part is shortened (at a word boundary, with "…").
+export function getDishMetaDescription(dish) {
+  const dishText = String(dish?.description || '').replace(/\s+/g, ' ').trim().replace(/[\s.]+$/, '');
+  if (!dishText) return `Order ${getDishDisplayName(dish)} for pickup or delivery from Preva Kitchen in Redford Township, MI.`;
+  const full = `${dishText}${/[!?]$/.test(dishText) ? '' : '.'} ${DISH_META_CLOSER}`;
+  if (full.length <= META_DESCRIPTION_MAX) return full;
+  return `${truncateAtWord(dishText, META_DESCRIPTION_MAX - DISH_META_CLOSER.length - 1)} ${DISH_META_CLOSER}`;
+}
+
 export function getDefaultFaqs(dish) {
-  const name = dish?.name || 'this dish';
+  const name = getDishDisplayName(dish);
   const plural = isPluralName(name);
   const be = plural ? 'are' : 'is';
   const costs = plural ? 'cost' : 'costs';
+  const the = withDishArticle(name);
+  const The = withDishArticle(name, { capitalize: true });
+  const isPrevaName = the === name;
   const price = dish?.price || 'the current menu price';
   const description = dish?.description || `${name} ${be} prepared fresh to order with Preva’s house seasoning.`;
   const content = profileFor(dish) || fallbackFor(dish);
   const pairings = pairingsFor(dish, content);
   const pairingText = pairings.length ? pairings.slice(0, 3).join(', ') : 'Preva’s signature sides and menu favorites';
   return [
-    { q: `What ${be} the ${name} at Preva Kitchen?`, a: `${description} ${content.preparation}` },
-    { q: `How much ${plural ? 'do' : 'does'} the ${name} cost?`, a: `The ${name} ${costs} ${price} at Preva Kitchen in Redford Township, MI. Prices on delivery apps may vary slightly.` },
+    { q: isPrevaName ? `What ${be} ${name}?` : `What ${be} ${the} at Preva Kitchen?`, a: `${description} ${content.preparation}` },
+    { q: `How much ${plural ? 'do' : 'does'} ${the} cost?`, a: `${The} ${costs} ${price} at Preva Kitchen in Redford Township, MI. Prices on delivery apps may vary slightly.` },
     content.question && content.answer
       ? { q: content.question, a: content.answer }
-      : { q: `Where can I order the ${name} near me?`, a: `The ${name} ${be} served at ${LOCATION}. Dine in, call +1 313-286-3586 for pickup, or order online for delivery.` },
-    { q: `Can I get the ${name} delivered in Redford Township?`, a: `Yes — order the ${name} for delivery from the Preva online shop during kitchen hours, or call +1 313-286-3586 to arrange pickup from 13090 Inkster Rd.` },
-    { q: `What goes well with the ${name}?`, a: `Recommended pairings are ${pairingText}. They can be added to the same pickup or delivery order.` }
+      : { q: `Where can I order ${the} near me?`, a: `${The} ${be} served at ${LOCATION}. Dine in, call +1 313-286-3586 for pickup, or order online for delivery.` },
+    { q: `Can I get ${the} delivered in Redford Township?`, a: `Yes — order ${the} for delivery from the Preva online shop during kitchen hours, or call +1 313-286-3586 to arrange pickup from 13090 Inkster Rd.` },
+    { q: `What goes well with ${the}?`, a: `Recommended pairings are ${pairingText}. They can be added to the same pickup or delivery order.` }
   ];
 }
 

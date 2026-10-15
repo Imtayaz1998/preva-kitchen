@@ -42,7 +42,7 @@ export default function NewsletterSection() {
       const res = await fetch(`${API}/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed })
+        body: JSON.stringify({ email: trimmed, pageUrl: window.location.href })
       });
 
       if (res.ok) {

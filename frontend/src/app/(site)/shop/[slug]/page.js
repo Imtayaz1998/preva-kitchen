@@ -6,13 +6,17 @@ import ProductBuy from '@/components/shop/ProductBuy';
 import {
   getDefaultAboutTitle,
   getDishFaqs,
+  getDishDisplayName,
+  getDishMetaDescription,
+  withDishArticle,
+  isPluralName,
   parseAboutContent,
   splitAboutLinks,
   isWingFlavorPage,
   getCrossCategoryPairings
 } from '@/lib/dish-detail-content';
 import { withCanonicalSlugs } from '@/lib/legacy-dish-slugs';
-import { pageMetadata, truncateAtWord } from '@/lib/seo';
+import { pageMetadata } from '@/lib/seo';
 import { dishImage } from '@/lib/dish-images';
 import { getCanonicalOrigin } from '@/lib/site-url';
 import { generateBreadcrumbSchema } from '@/lib/seo-schema';
@@ -26,13 +30,11 @@ export async function generateMetadata({ params }) {
   const data = await cmsFetch(`/shop/products/${encodeURIComponent(slug)}`);
   const product = data?.product || getFallbackProduct(slug);
   if (!product) return { title: 'Item not found' };
-  const description = product.description
-    ? `${product.description} Order ${product.name} from Preva Kitchen for pickup or delivery in Redford Township, MI.`
-    : `Order ${product.name} from Preva Kitchen for pickup or delivery in Redford Township, MI.`;
+  const description = getDishMetaDescription(product);
 
   return pageMetadata({
     title: `${product.name} in Redford, MI`,
-    description: truncateAtWord(description, 155),
+    description,
     path: `/menu/${encodeURIComponent(slug)}`,
     image: dishImage(product),
     // Dish photos are square, not 1200x630 - do not declare the wrong size.
@@ -58,6 +60,9 @@ export default async function ProductPage({ params }) {
   const aboutTitle = product.aboutTitle || getDefaultAboutTitle(product);
   const aboutParagraphs = parseAboutContent(product.aboutContent, product);
   const faqs = getDishFaqs(product);
+  const displayName = getDishDisplayName(product);
+  // Only promise "More <Category>" when the list really leads with that category.
+  const relatedTitle = product.category && related[0]?.category === product.category ? `More ${product.category}` : 'More from the Menu';
   const linksBackToWingsHub = isWingFlavorPage(product);
   const crossCategoryPairings = getCrossCategoryPairings(product);
   const siteOrigin = getCanonicalOrigin();
@@ -175,7 +180,7 @@ export default async function ProductPage({ params }) {
               ))}
               {linksBackToWingsHub && (
                 <p>
-                  The {product.name} is part of our{' '}
+                  {withDishArticle(displayName, { capitalize: true })} {isPluralName(displayName) ? 'are' : 'is'} part of our{' '}
                   <Link href="/menu/preva-wings">full wings lineup</Link> — seven house sauces, all made to
                   order in Redford, MI.
                 </p>
@@ -200,7 +205,7 @@ export default async function ProductPage({ params }) {
 
           <section className="ps-dish-faq" aria-labelledby="dish-faq-title">
             <span className="ps-detail-kicker">FAQ</span>
-            <h2 id="dish-faq-title" className="ps-detail-title">Questions about the {product.name}</h2>
+            <h2 id="dish-faq-title" className="ps-detail-title">Questions about {withDishArticle(displayName)}</h2>
             <div className="ps-detail-rule" aria-hidden="true" />
             <div className="ps-dish-faq__list">
               {faqs.map((faq, index) => (
@@ -220,7 +225,7 @@ export default async function ProductPage({ params }) {
               <div className="ps-shead">
                 <div>
                   <span className="ps-kicker">Goes well with</span>
-                  <h2 className="ps-h2">More {product.category}</h2>
+                  <h2 className="ps-h2">{relatedTitle}</h2>
                 </div>
                 <Link href="/menu" className="ps-more">Full menu</Link>
               </div>
