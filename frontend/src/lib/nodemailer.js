@@ -64,7 +64,7 @@ export function getSmtpConfig(account = 'default') {
 
   const careerPass = String(process.env.CAREER_SMTP_PASS || env.CAREER_SMTP_PASS || '').replace(/\s+/g, '').trim();
   if (account === 'career' && careerPass) {
-    const user = String(process.env.CAREER_SMTP_USER || env.CAREER_SMTP_USER || 'donnaw@prevaclub.com').trim();
+    const user = String(process.env.CAREER_SMTP_USER || env.CAREER_SMTP_USER || 'careers@prevakitchen.com').trim();
     return { host, port, secure, user, pass: careerPass };
   }
 
@@ -99,7 +99,7 @@ export function getContactRecipient() {
 }
 
 export function getCareerRecipient() {
-  return String(process.env.CAREER_EMAIL || 'donnaw@prevaclub.com').trim();
+  return String(process.env.CAREER_EMAIL || 'careers@prevakitchen.com').trim();
 }
 
 export function getSiteUrl() {
@@ -139,6 +139,7 @@ export function isStaffEmail(email) {
     getCareerRecipient().toLowerCase(),
     'reservations@prevakitchen.com',
     'info@prevakitchen.com',
+    'careers@prevakitchen.com',
     'donnaw@prevaclub.com',
     'admin@prevakitchen.com'
   ];
@@ -567,7 +568,7 @@ export async function sendContactEmail(data) {
 
 /**
  * 3. Send Career Application Form Submission
- * Admin copy routes ONLY to CAREER_EMAIL (donnaw@prevaclub.com) with resume attachment.
+ * Admin copy routes ONLY to CAREER_EMAIL (careers@prevakitchen.com) with resume attachment.
  * Sets replyTo to applicant's email.
  * Applicant confirmation routes ONLY to applicant's personal email.
  */
@@ -606,7 +607,7 @@ export async function sendCareerEmail(data) {
     row('Resume File', data.resume?.name ? `${data.resume.name} (Attached)` : 'None') +
     row('Submitted At', submitted, false, true);
 
-  // 1. Admin HR notification to donnaw@prevaclub.com
+  // 1. Admin HR notification to careers@prevakitchen.com
   const adminTask = sendMail({
     account: 'career',
     to: recipient,

@@ -395,7 +395,7 @@ export const EVENT_PAGES = {
         ['Can our decorator set up before guests arrive?', 'Yes. A setup window is scheduled before doors so your decorator can dress the room, arrange the backdrop, and set the dessert and gift tables. Outside vendors must be licensed and insured and are subject to venue approval.'],
         ['What food options work for a shower?', 'Preva Kitchen offers brunch service, plated lunch, and grazing or shared platter styles. Menus are built with the events team, and dietary requirements can be accommodated with advance notice.'],
         ['Is there room for games, a gift table, and a photo backdrop?', 'Yes. The floor plan is arranged around how the afternoon runs, with clear space for games, an accessible gift and dessert table, and a wall or corner for a photo backdrop.'],
-        ['Do you host bridal showers, sip and sees and gender reveals?', 'Yes. All four are booked here and each is planned differently, so tell us which one you are holding on the inquiry form. The room dressing, the menu and the running order are built around that answer.'],
+        ['Do you host bridal showers, sip and sees and gender reveals?', 'Yes. We can host all four, and each is planned differently, so tell us which one you are holding on the inquiry form. The room dressing, the menu and the running order are built around that answer.'],
         ['Is there parking at the venue?', 'There is parking on site at 13090 Inkster Rd, close to the entrance. Arrangements for larger guest counts and for guests carrying gifts or arriving with young children are confirmed with the events team during the walkthrough.'],
         ['How do we reserve a shower date?', 'Submit the inquiry with your preferred date and estimated guest count. The events team will confirm availability and provide the applicable proposal, agreement, and deposit terms before the booking is finalized.']
       ]
@@ -452,7 +452,6 @@ export const EVENT_PAGES = {
         options: [
           ['reception_only', 'Reception only — one day'],
           ['ceremony_reception', 'Ceremony and reception, same day'],
-          ['multi_day', 'Multi-day celebration'],
           ['', 'Not sure yet — happy to discuss']
         ]
       },
@@ -494,12 +493,6 @@ export const EVENT_PAGES = {
           featured: true,
           points: ['Flexible reception and social layout', 'Food and beverage planning', 'DJ, speeches, and special-moment requirements reviewed', 'Indoor event areas coordinated around your timeline', 'Optional patio use when available'],
           cta: 'Plan My Wedding Reception →'
-        },
-        {
-          title: 'Multi-Day & Cultural Weddings',
-          sub: 'Planned day by day',
-          points: ['Multi-day scheduling across consecutive dates', 'A different layout and menu for each event', 'Procession space, stage and mandap setups', 'Outside cultural caterers, subject to venue approval', 'One events contact across every date'],
-          cta: 'Ask About a Multi-Day Wedding →'
         }
       ]
     },
@@ -532,7 +525,6 @@ export const EVENT_PAGES = {
         ['Does PREVA offer wedding catering?', 'Preva Kitchen can provide catering options for wedding receptions. Menu style and service format are confirmed with the events team for each booking.'],
         ['Can we bring an outside caterer?', 'Licensed and insured outside caterers may be permitted, subject to venue approval and a current certificate of insurance. Preva Kitchen is also available for on-site catering.'],
         ['Who provides the bar, and can we have an open bar or a dry reception?', 'Bar and beverage service is provided in house. Michigan law requires alcohol to be served under the venue license, so outside alcohol cannot be brought in, and valid ID is required for anyone served. Open bar, limited bar, cash bar and alcohol-free receptions are all arrangements the events team will price and confirm with you — tell us which you have in mind on the inquiry form.'],
-        ['Do you host multi-day and cultural weddings?', 'Yes, and they are planned differently from a single-day reception. Multi-day scheduling, processions, mandap and stage setups, and outside cultural caterers are all planned with the events team — choose “Multi-day celebration” on the inquiry form.'],
         ['Can our wedding include a DJ, speeches, stage moments, or special entrances?', 'Music, speeches, presentations, stage moments, and special entrances can be discussed with the events team so the room layout and available production support fit your plan.'],
         ['Can we use the patio during our wedding reception?', 'Patio use may be available depending on weather, venue scheduling, and the wedding plan. Michigan weather makes this a seasonal option, so an indoor alternative is planned alongside it for any date outside the warmer months.'],
         ['How late can the reception run?', 'The end time is agreed with the events team when the booking is planned. It depends on the day of the week, the venue’s licensing, and what else is scheduled that night, so it is confirmed in writing in the proposal rather than left open.'],

@@ -40,7 +40,7 @@ const fromEmail = String(process.env.FROM_EMAIL || '').trim();
 
 const reservationEmail = String(process.env.RESERVATION_EMAIL || 'reservations@prevakitchen.com').trim();
 const contactEmail = String(process.env.CONTACT_EMAIL || 'info@prevakitchen.com').trim();
-const careerEmail = String(process.env.CAREER_EMAIL || 'donnaw@prevaclub.com').trim();
+const careerEmail = String(process.env.CAREER_EMAIL || 'careers@prevakitchen.com').trim();
 
 console.log('\nPREVA Kitchen Nodemailer SMTP Configuration Check\n');
 console.log(`SMTP Host:              ${smtpHost}`);
@@ -140,7 +140,7 @@ const checks = [
   ['reservation customer (→ customer confirmation)', () => notifyReservationCustomer(reservation)],
   ['contact admin (→ info@prevakitchen.com)', () => notifyContactEnquiry(contact)],
   ['contact customer (→ customer confirmation)', () => notifyContactCustomer(contact)],
-  ['career admin (→ donnaw@prevaclub.com)', () => notifyCareerApplication(application)],
+  ['career admin (→ careers@prevakitchen.com)', () => notifyCareerApplication(application)],
   ['career applicant (→ applicant confirmation)', () => notifyCareerApplicationCustomer(application)],
   ['vip request admin (→ reservations@prevakitchen.com)', () => notifyVipRequest(vip)],
   ['vip request customer (→ customer confirmation)', () => notifyVipRequestCustomer(vip)],

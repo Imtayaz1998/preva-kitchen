@@ -56,7 +56,7 @@ function getReservationRecipients() {
 
 function getCareerRecipients() {
   return parseRecipients(
-    process.env.CAREER_EMAIL || process.env.CAREER_ADMIN_EMAIL || process.env.HR_EMAIL || 'donnaw@prevaclub.com'
+    process.env.CAREER_EMAIL || process.env.CAREER_ADMIN_EMAIL || process.env.HR_EMAIL || 'careers@prevakitchen.com'
   );
 }
 
@@ -97,25 +97,32 @@ async function logEmailAttempt({ formType, recipientType, to, subject, status, p
    1. Nodemailer: Zero DNS setup. Send from your Gmail account via App Password.
    2. Resend: API-based delivery (free 3,000 emails/month).                  */
 
-function getSmtpConfig() {
-  const user = String(process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
-  const pass = String(process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '').trim();
+function getSmtpConfig(account) {
   const host = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
   const port = Number(process.env.SMTP_PORT) || 465;
   const secure = process.env.SMTP_SECURE !== undefined
     ? String(process.env.SMTP_SECURE).toLowerCase() === 'true'
     : port === 465;
-  return { user, pass, host, port, secure };
+
+  // Career mail sends from its own mailbox; falls back to the default account
+  // until CAREER_SMTP_USER + CAREER_SMTP_PASS are both set.
+  if (account === 'career') {
+    const user = String(process.env.CAREER_SMTP_USER || '').trim();
+    const pass = String(process.env.CAREER_SMTP_PASS || '').replace(/\s+/g, '').trim();
+    if (user && pass) return { user, pass, host, port, secure, from: `Preva Kitchen Careers <${user}>` };
+  }
+
+  const user = String(process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+  const pass = String(process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '').trim();
+  return { user, pass, host, port, secure, from: getFromAddress() };
 }
 
-let _transporter = null;
-let _cachedSmtpKey = null;
-function getTransporter() {
-  const { user, pass, host, port, secure } = getSmtpConfig();
+const _transporters = new Map();
+function getTransporter(account) {
+  const { user, pass, host, port, secure } = getSmtpConfig(account);
   const key = `${user}:${pass}:${host}:${port}:${secure}`;
-  if (!_transporter || _cachedSmtpKey !== key) {
-    _cachedSmtpKey = key;
-    _transporter = nodemailer.createTransport({
+  if (!_transporters.has(key)) {
+    _transporters.set(key, nodemailer.createTransport({
       host,
       port,
       secure,
@@ -125,25 +132,25 @@ function getTransporter() {
       maxMessages: 100,
       rateDelta: 1000,
       rateLimit: 5
-    });
+    }));
   }
-  return _transporter;
+  return _transporters.get(key);
 }
 
-function isSmtpConfigured() {
-  const { user, pass } = getSmtpConfig();
+function isSmtpConfigured(account) {
+  const { user, pass } = getSmtpConfig(account);
   return Boolean(user && pass);
 }
 
-function configured() {
-  return isSmtpConfigured();
+function configured(account) {
+  return isSmtpConfigured(account);
 }
 
 /**
  * Send one email via Nodemailer (Gmail SMTP).
  * Returns true on success, false (+ console.error) on failure.
  */
-async function send({ to, subject, html, text, replyTo, attachments, formType, recipientType, referenceId }) {
+async function send({ to, subject, html, text, replyTo, attachments, formType, recipientType, referenceId, account }) {
   const requested = (Array.isArray(to) ? to : [to]).filter(Boolean);
   const recipients = requested.length ? requested : getAdminRecipients();
 
@@ -159,7 +166,7 @@ async function send({ to, subject, html, text, replyTo, attachments, formType, r
     return false;
   }
 
-  if (!configured()) {
+  if (!configured(account)) {
     console.warn('[email] SMTP credentials (SMTP_USER / SMTP_PASS) not configured; skipping email.', { formType, recipientType });
     await logEmailAttempt({ formType, recipientType, to: recipients, subject, status: 'skipped', error: 'SMTP not configured', referenceId });
     return false;
@@ -173,8 +180,8 @@ async function send({ to, subject, html, text, replyTo, attachments, formType, r
   }
 
   try {
-    const info = await getTransporter().sendMail({
-      from: getFromAddress(),
+    const info = await getTransporter(account).sendMail({
+      from: getSmtpConfig(account).from,
       to: finalRecipients.join(', '),
       subject,
       html,
@@ -851,6 +858,7 @@ export async function notifyCareerApplication(data) {
     ])}\n\nView applications: ${adminUrl}/career-applications`,
     formType: 'CAREER_APPLICATION',
     recipientType: 'admin',
+    account: 'career',
     referenceId: data.referenceId
   });
 }
@@ -1057,6 +1065,7 @@ export async function notifyCareerApplicationCustomer(data) {
     ])}\n\nOur hiring team will contact you by phone or email if your experience matches a current opportunity.\n${getSiteUrl()}/careers`,
     formType: 'CAREER_APPLICATION',
     recipientType: 'customer',
+    account: 'career',
     referenceId: data.referenceId
   });
 }

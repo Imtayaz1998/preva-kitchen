@@ -163,7 +163,6 @@ export default function EventLandingPage({ page }) {
           <div className={s.grid3}>
             {page.packages.items.map((pkg) => (
               <Card key={pkg.title} style={pkg.featured ? FEATURED_CARD : { height: '100%' }}>
-                {pkg.featured ? <span className={s.pkgTag}>Most Booked</span> : null}
                 <h3 className={s.cardTitle}>{pkg.title}</h3>
                 <p className={s.pkgSub}>{pkg.sub}</p>
                 <ul className={s.pkgList}>
