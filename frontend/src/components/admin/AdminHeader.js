@@ -85,7 +85,7 @@ export default function AdminHeader({ user, pathname, onMobileOpen, onLogout }) 
                   </div>
                 </div>
                 <Link href="/admin/profile" onClick={() => setProfileOpen(false)}><User size={14} /><span>Change password</span></Link>
-                {user.role !== 'CAREERS_MANAGER' && <Link href="/admin/settings" onClick={() => setProfileOpen(false)}><Settings size={14} /><span>Site settings</span></Link>}
+                {user.role !== 'CAREERS_MANAGER' && user.role !== 'MARKETING' && <Link href="/admin/settings" onClick={() => setProfileOpen(false)}><Settings size={14} /><span>Site settings</span></Link>}
                 <button type="button" onClick={() => { setProfileOpen(false); onLogout(); }}>
                   <LogOut size={14} />
                   <span>Sign out</span>

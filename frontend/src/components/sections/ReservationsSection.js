@@ -63,7 +63,7 @@ export default function ReservationsSection({ activeTab: controlledTab, setActiv
 
     setDiningSubmitting(true);
     const dateTime = `${dining.date}T${dining.time}:00`;
-    const details = [dining.occasion || 'Table reservation', `Seating: ${dining.seating}`, dining.notes ? `Notes: ${dining.notes}` : ''].filter(Boolean).join(' | ');
+    const details = [`Seating: ${dining.seating}`, dining.notes ? `Notes: ${dining.notes}` : ''].filter(Boolean).join(' | ');
 
     try {
       const response = await fetch(`${API}/reservations`, {
@@ -80,16 +80,18 @@ export default function ReservationsSection({ activeTab: controlledTab, setActiv
           time: dining.time,
           reservationDate: dateTime,
           guests: dining.guests,
-          occasion: details
+          occasion: dining.occasion || 'Table reservation',
+          notes: details
         })
       });
-      if (!response.ok) throw new Error('Reservation request failed');
-      const requestNumber = `PK-${Math.floor(1000 + Math.random() * 9000)}-TABLE`;
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message || 'Reservation request failed');
+      const requestNumber = result?.referenceId ? `Ref ${result.referenceId}` : 'Request';
       showSuccess('Table request received', `${requestNumber} · ${formatDate(dining.date)} at ${formatTime(dateTime)} · ${dining.guests} guests. Our team will confirm by phone or email shortly.`);
       setDining({ date: '', time: '', guests: 2, seating: 'any', occasion: '', notes: '', name: '', phone: '', email: '' });
     } catch (error) {
       console.error(error);
-      showError('Could Not Submit', 'Please try again or call us at (313) 286-3586.');
+      showError('Could Not Submit', error?.message && error.message !== 'Reservation request failed' ? error.message : 'Please try again or call us at (313) 286-3586.');
     } finally {
       setDiningSubmitting(false);
     }
@@ -106,7 +108,7 @@ export default function ReservationsSection({ activeTab: controlledTab, setActiv
     setEventSubmitting(true);
     const service = SERVICE_TYPES[event.service];
     const dateTime = `${event.date}T${event.time}:00`;
-    const details = [service.label, `Menu: ${event.menu}`, `Venue: ${event.venue}`, event.notes ? `Notes: ${event.notes}` : ''].filter(Boolean).join(' | ');
+    const details = [`Menu: ${event.menu}`, `Venue: ${event.venue}`, event.notes ? `Notes: ${event.notes}` : ''].filter(Boolean).join(' | ');
 
     try {
       const response = await fetch(`${API}/reservations`, {
@@ -123,16 +125,18 @@ export default function ReservationsSection({ activeTab: controlledTab, setActiv
           time: event.time,
           reservationDate: dateTime,
           guests: event.guests,
-          occasion: details
+          occasion: `Catering & groups · ${service.label}`,
+          notes: details
         })
       });
-      if (!response.ok) throw new Error('Event request failed');
-      const requestNumber = `PK-${Math.floor(1000 + Math.random() * 9000)}-EVENT`;
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(result?.message || 'Event request failed');
+      const requestNumber = result?.referenceId ? `Ref ${result.referenceId}` : 'Request';
       showSuccess('Event request received', `${requestNumber} · ${service.label} · ${formatDate(event.date)} at ${formatTime(dateTime)} · ${event.guests} guests. Our kitchen team will contact you about availability, menu and pricing.`);
       setEvent({ service: 'group', date: '', time: '', guests: 10, menu: 'family-style', venue: 'preva', notes: '', name: '', phone: '', email: '' });
     } catch (error) {
       console.error(error);
-      showError('Could Not Submit', 'Please try again or call us at (313) 286-3586.');
+      showError('Could Not Submit', error?.message && error.message !== 'Event request failed' ? error.message : 'Please try again or call us at (313) 286-3586.');
     } finally {
       setEventSubmitting(false);
     }

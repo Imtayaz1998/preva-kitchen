@@ -118,7 +118,9 @@ export async function dispatch({ method = 'GET', path, query = {}, body = null, 
       AUTHOR: [
         '/admin/dashboard', '/admin/profile', '/admin/content', '/admin/media',
         '/admin/categories', '/admin/tags'
-      ]
+      ],
+      // Read-only: the leads list (route roles keep status/delete admin-only).
+      MARKETING: ['/admin/profile', '/admin/leads']
     };
     const scopedPrefixes = scopedAdminPrefixes[user?.role];
     if (

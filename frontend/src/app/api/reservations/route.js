@@ -61,9 +61,9 @@ export async function POST(request) {
       );
     }
 
-    if (guests < 1 || guests > 30) {
+    if (guests < 1 || guests > 200) {
       return NextResponse.json(
-        { message: 'Party size must be between 1 and 30 guests.' },
+        { message: 'Party size must be between 1 and 200 guests.' },
         { status: 400 }
       );
     }

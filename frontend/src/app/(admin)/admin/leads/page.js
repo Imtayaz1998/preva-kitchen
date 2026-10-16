@@ -2,17 +2,21 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  BriefcaseBusiness, CalendarDays, CalendarRange, CheckCheck, Copy, Download, ExternalLink, Eye, FileText,
-  Inbox, Magnet, Mail, Phone, RefreshCw, Search, Sparkles, Trash2, X
+  BriefcaseBusiness, CalendarDays, CalendarRange, CheckCheck, CircleX, Clock3, Copy, Download, ExternalLink, Eye, FileText,
+  Inbox, Magnet, Mail, MessageSquareText, Phone, RefreshCw, Search, Sparkles, Trash2, X
 } from 'lucide-react';
 import Shell from '@/components/admin/Shell';
 import { EmptyState, LoadingSkeleton, PageHeader, StatsCard, StatusBadge } from '@/components/admin/AdminUI';
 import { useConfirm } from '@/components/admin/ConfirmDialog';
-import { api } from '@/lib/admin-api';
+import { LEAD_STAGES, STAGE_FLOW, StagePill, toDateInput } from '@/components/admin/LeadStages';
+import { api, getUser } from '@/lib/admin-api';
 import { exportLeadsXlsx } from '@/lib/leads-export';
 import '@/styles/admin-leads.css';
 
 const PAGE_SIZE = 25;
+
+// "PENDING → CONTACTED" (as stored) → "Pending → Contacted".
+const readableAction = (action) => String(action || '').replace(/\b(PENDING|CONTACTED|FOLLOW_UP|CONVERTED|REJECTED)\b/g, (stage) => LEAD_STAGES[stage]?.label || stage);
 const DAY = 24 * 60 * 60 * 1000;
 
 // Field names as stored by the forms → readable labels for the preview and CSV.
@@ -80,6 +84,10 @@ export default function LeadsPage() {
   const [error, setError] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('');
+  const [stageFilter, setStageFilter] = useState('');
+  const [noteDraft, setNoteDraft] = useState('');
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [savingStage, setSavingStage] = useState(false);
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -87,6 +95,9 @@ export default function LeadsPage() {
   const [selected, setSelected] = useState(null);
   const [cv, setCv] = useState(null);
   const [copied, setCopied] = useState('');
+  // Marketing accounts only view and export; status changes, deletes and CVs stay with admins.
+  const [readOnly, setReadOnly] = useState(false);
+  useEffect(() => { getUser().then((user) => setReadOnly(user?.role === 'MARKETING')).catch(() => {}); }, []);
 
   const load = async () => {
     setLoading(true); setError('');
@@ -99,10 +110,15 @@ export default function LeadsPage() {
       if (body.statuses) setStatusOptions(body.statuses);
       const params = new URLSearchParams(window.location.search);
       if (params.get('type')) setTypeFilter(params.get('type'));
+      if (params.get('stage')) setStageFilter(params.get('stage'));
+      // Deep link from the Marketing dashboard: ?lead=<type>:<id>
+      const [linkType, linkId] = String(params.get('lead') || '').split(':');
+      const linked = linkId && (body.leads || []).find((lead) => lead.type === linkType && lead.id === linkId);
+      if (linked) setSelected(linked);
     } catch (loadError) { setError(loadError.message); } finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
-  useEffect(() => { setPage(1); }, [typeFilter, statusFilter, search, from, to]);
+  useEffect(() => { setPage(1); }, [typeFilter, statusFilter, stageFilter, search, from, to]);
 
   const typeCounts = useMemo(() => leads.reduce((counts, lead) => ({ ...counts, [lead.type]: (counts[lead.type] || 0) + 1 }), {}), [leads]);
 
@@ -113,6 +129,7 @@ export default function LeadsPage() {
     return leads.filter((lead) => {
       if (typeFilter !== 'all' && lead.type !== typeFilter) return false;
       if (statusFilter && lead.status !== statusFilter) return false;
+      if (stageFilter && lead.stage !== stageFilter) return false;
       const created = lead.createdAt ? new Date(lead.createdAt) : null;
       if (start && (!created || created < start)) return false;
       if (end && (!created || created > end)) return false;
@@ -120,7 +137,7 @@ export default function LeadsPage() {
       const haystack = [lead.name, lead.email, lead.phone, lead.subject, lead.message, lead.source, lead.pageUrl, lead.typeLabel, ...Object.values(flatten(lead.details))].join(' ').toLowerCase();
       return haystack.includes(term);
     });
-  }, [leads, typeFilter, statusFilter, search, from, to]);
+  }, [leads, typeFilter, statusFilter, stageFilter, search, from, to]);
 
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const pageRows = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -160,11 +177,24 @@ export default function LeadsPage() {
     }
   };
 
+  const updatePipeline = async (lead, changes) => {
+    setSavingStage(true); setError('');
+    try {
+      const response = await api(`/admin/leads/${lead.type}/${lead.id}/pipeline`, { method: 'PUT', body: JSON.stringify(changes) });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.message || 'Could not update the lead.');
+      patchLead(lead, { stage: body.stage, followUpAt: body.followUpAt, stageUpdatedAt: body.stageUpdatedAt, stageUpdatedBy: body.stageUpdatedBy, stageHistory: body.stageHistory });
+      if (changes.note) setNoteDraft('');
+    } catch (pipelineError) { setError(pipelineError.message); } finally { setSavingStage(false); }
+  };
+
   const openLead = (lead) => {
     setSelected(lead);
     setCv(null);
+    setNoteDraft('');
+    setShowAllHistory(false);
     // Opening a brand-new website enquiry counts as reading it.
-    if (lead.status === 'NEW' && lead.type !== 'career' && lead.type !== 'newsletter') updateStatus(lead, 'READ');
+    if (!readOnly && lead.status === 'NEW' && lead.type !== 'career' && lead.type !== 'newsletter') updateStatus(lead, 'READ');
   };
 
   const closeLead = () => { if (cv?.url) URL.revokeObjectURL(cv.url); setCv(null); setSelected(null); };
@@ -212,6 +242,7 @@ export default function LeadsPage() {
     try {
       const parts = [typeFilter === 'all' ? 'All lead types' : types[typeFilter] || typeFilter];
       if (statusFilter) parts.push(`Status: ${statusFilter}`);
+      if (stageFilter) parts.push(`Stage: ${LEAD_STAGES[stageFilter]?.label || stageFilter}`);
       if (from || to) parts.push(`Dates: ${from || '…'} to ${to || '…'}`);
       if (search) parts.push(`Search: “${search}”`);
       await exportLeadsXlsx({
@@ -226,8 +257,8 @@ export default function LeadsPage() {
     }
   };
 
-  const clearFilters = () => { setTypeFilter('all'); setStatusFilter(''); setSearch(''); setFrom(''); setTo(''); };
-  const filtersActive = typeFilter !== 'all' || statusFilter || search || from || to;
+  const clearFilters = () => { setTypeFilter('all'); setStatusFilter(''); setStageFilter(''); setSearch(''); setFrom(''); setTo(''); };
+  const filtersActive = typeFilter !== 'all' || statusFilter || stageFilter || search || from || to;
   const details = selected ? Object.entries(flatten(selected.details)) : [];
 
   return <Shell>
@@ -263,6 +294,10 @@ export default function LeadsPage() {
 
       <div className="leads-toolbar">
         <div className="ats-search"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email, phone, message, page…" /></div>
+        <select className="input" value={stageFilter} onChange={(event) => setStageFilter(event.target.value)} aria-label="Stage">
+          <option value="">All stages</option>
+          {Object.entries(LEAD_STAGES).map(([stage, meta]) => <option key={stage} value={stage}>{meta.label}</option>)}
+        </select>
         <select className="input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Status">
           <option value="">All statuses</option>
           {allStatuses.map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}
@@ -278,7 +313,7 @@ export default function LeadsPage() {
       ) : <>
         <div className="leads-table-wrap">
           <table className="table leads-table">
-            <thead><tr><th>Lead</th><th>Type</th><th>Interest / summary</th><th>Form / page URL</th><th>Received</th><th>Status</th><th aria-label="Actions" /></tr></thead>
+            <thead><tr><th>Lead</th><th>Type</th><th>Interest / summary</th><th>Form / page URL</th><th>Received</th><th>Stage</th><th>Status</th><th aria-label="Actions" /></tr></thead>
             <tbody>
               {pageRows.map((lead) => (
                 <tr key={`${lead.type}-${lead.id}`} className={lead.status === 'NEW' ? 'is-new' : ''} onClick={() => openLead(lead)}>
@@ -297,8 +332,12 @@ export default function LeadsPage() {
                       : <small className="leads-page-url is-empty">Page not recorded</small>}
                   </td>
                   <td><span title={lead.createdAt ? new Date(lead.createdAt).toLocaleString() : ''}>{relativeTime(lead.createdAt)}</span></td>
+                  <td>
+                    <StagePill stage={lead.stage} />
+                    {lead.stage === 'FOLLOW_UP' && lead.followUpAt && <small className={`lead-followup ${toDateInput(lead.followUpAt) < toDateInput(new Date()) ? 'is-late' : ''}`}>Call on {new Date(lead.followUpAt).toLocaleDateString()}</small>}
+                  </td>
                   <td onClick={(event) => event.stopPropagation()}>
-                    {lead.type === 'newsletter' ? <StatusBadge status={lead.status} /> : (
+                    {readOnly || lead.type === 'newsletter' ? <StatusBadge status={lead.status} /> : (
                       <select className="input leads-status-select" value={lead.status} onChange={(event) => updateStatus(lead, event.target.value)} aria-label={`Status of ${lead.name || lead.email}`}>
                         {statusesFor(lead).map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}
                       </select>
@@ -307,7 +346,7 @@ export default function LeadsPage() {
                   <td onClick={(event) => event.stopPropagation()}>
                     <div className="leads-row-actions">
                       <button type="button" className="icon-button" title="Preview" onClick={() => openLead(lead)}><Eye size={15} /></button>
-                      {lead.resume && <button type="button" className="icon-button" title="Download CV" onClick={() => downloadResume(lead)}><FileText size={15} /></button>}
+                      {lead.resume && !readOnly && <button type="button" className="icon-button" title="Download CV" onClick={() => downloadResume(lead)}><FileText size={15} /></button>}
                     </div>
                   </td>
                 </tr>
@@ -341,12 +380,12 @@ export default function LeadsPage() {
         <div className="leads-drawer-actions">
           {selected.email && <a className="btn btn-secondary" href={`mailto:${selected.email}`}><Mail size={14} /> Email</a>}
           {selected.phone && <a className="btn btn-secondary" href={`tel:${selected.phone}`}><Phone size={14} /> Call</a>}
-          {selected.type === 'newsletter' ? <StatusBadge status={selected.status} /> : (
+          {readOnly || selected.type === 'newsletter' ? <StatusBadge status={selected.status} /> : (
             <select className="input leads-status-select" value={selected.status} onChange={(event) => updateStatus(selected, event.target.value)} aria-label="Status">
               {statusesFor(selected).map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}
             </select>
           )}
-          {selected.type !== 'career' && selected.type !== 'newsletter' && selected.status !== 'CONFIRMED' && <button type="button" className="btn" onClick={() => updateStatus(selected, 'CONFIRMED')}><CheckCheck size={14} /> Mark handled</button>}
+          {!readOnly && selected.type !== 'career' && selected.type !== 'newsletter' && selected.status !== 'CONFIRMED' && <button type="button" className="btn" onClick={() => updateStatus(selected, 'CONFIRMED')}><CheckCheck size={14} /> Mark handled</button>}
         </div>
 
         <div className="leads-drawer-body">
@@ -370,7 +409,7 @@ export default function LeadsPage() {
             </dl>
           </section>
 
-          {selected.resume && <section className="leads-section">
+          {selected.resume && !readOnly && <section className="leads-section">
             <h3>CV / resume</h3>
             <div className="leads-cv">
               <FileText size={22} />
@@ -390,11 +429,61 @@ export default function LeadsPage() {
               {details.map(([key, value]) => <div key={key} className={String(value).length > 60 ? 'is-wide' : ''}><dt>{humanize(key)}</dt><dd>{formatValue(value)}</dd></div>)}
             </dl>
           </section>}
+
+          {selected.stage && <section className="leads-section lead-pipeline">
+            <h3>Pipeline</h3>
+            <div className="lead-steps" role="group" aria-label="Lead stage">
+              {STAGE_FLOW.map((stage, index) => {
+                const meta = LEAD_STAGES[stage];
+                const Icon = meta.icon;
+                const reached = selected.stage !== 'REJECTED' && STAGE_FLOW.indexOf(selected.stage) >= index;
+                return <button type="button" key={stage} disabled={savingStage} title={meta.hint}
+                  className={`lead-step ${reached ? 'is-reached' : ''} ${selected.stage === stage ? 'is-current' : ''}`}
+                  onClick={() => stage !== selected.stage && updatePipeline(selected, { stage })}>
+                  <Icon size={15} /><span>{meta.label}</span>
+                </button>;
+              })}
+            </div>
+            <p className="lead-stage-hint">
+              <StagePill stage={selected.stage} /> {LEAD_STAGES[selected.stage]?.hint}
+              {selected.stageUpdatedBy && <> · changed by <b>{selected.stageUpdatedBy}</b> {relativeTime(selected.stageUpdatedAt)}</>}
+            </p>
+            <div className="lead-pipeline-actions">
+              {selected.stage !== 'REJECTED'
+                ? <button type="button" className="btn btn-secondary lead-reject" disabled={savingStage} onClick={() => updatePipeline(selected, { stage: 'REJECTED' })}><CircleX size={14} /> Reject</button>
+                : <button type="button" className="btn btn-secondary" disabled={savingStage} onClick={() => updatePipeline(selected, { stage: 'PENDING' })}><Clock3 size={14} /> Reopen as pending</button>}
+              {selected.stage !== 'CONVERTED' && selected.stage !== 'REJECTED' && <label className="lead-followup-input">
+                <span>Follow-up date</span>
+                <input className="input" type="date" disabled={savingStage} value={toDateInput(selected.followUpAt)}
+                  onChange={(event) => updatePipeline(selected, { followUpAt: event.target.value || null, ...(event.target.value && selected.stage !== 'FOLLOW_UP' ? { stage: 'FOLLOW_UP' } : {}) })} />
+              </label>}
+            </div>
+            <form className="lead-note" onSubmit={(event) => { event.preventDefault(); if (noteDraft.trim()) updatePipeline(selected, { note: noteDraft.trim() }); }}>
+              <textarea className="input" rows={2} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Add a note — e.g. Called, wants a quote for 40 guests, call back Friday" />
+              <button type="submit" className="btn" disabled={savingStage || !noteDraft.trim()}><MessageSquareText size={14} /> Save note</button>
+            </form>
+            {selected.stageHistory?.length > 0 && <div className="lead-history-wrap">
+              <div className="lead-history-head">
+                <span>Activity</span>
+                {selected.stageHistory.length > 3 && <button type="button" className="leads-link" onClick={() => setShowAllHistory((value) => !value)}>
+                  {showAllHistory ? 'Show less' : `Show all (${selected.stageHistory.length})`}
+                </button>}
+              </div>
+              <ol className="lead-history">
+                {[...selected.stageHistory].reverse().slice(0, showAllHistory ? undefined : 3).map((entry, index) => (
+                  <li key={`${entry.at}-${index}`}>
+                    <div><b>{readableAction(entry.action)}</b><small>{relativeTime(entry.at)} · {String(entry.by || '').split('@')[0]}</small></div>
+                    {entry.note && <p>{entry.note}</p>}
+                  </li>
+                ))}
+              </ol>
+            </div>}
+          </section>}
         </div>
 
         <div className="leads-drawer-foot">
           <small>ID {selected.id}</small>
-          <button type="button" className="btn btn-danger" onClick={() => deleteLead(selected)}><Trash2 size={14} /> Delete</button>
+          {!readOnly && <button type="button" className="btn btn-danger" onClick={() => deleteLead(selected)}><Trash2 size={14} /> Delete</button>}
         </div>
       </aside>
     </div>}

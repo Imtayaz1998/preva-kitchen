@@ -77,8 +77,10 @@ export default function ContactContent() {
       showSuccess('Message received', 'Thanks for reaching out. Our kitchen team will be in touch shortly.');
     } catch (submitError) {
       console.error(submitError);
-      setError('We could not send your message. Please call (313) 286-3586 or try again.');
-      showError('Message not sent', 'Please try again or call the kitchen at (313) 286-3586.');
+      // Show the server's reason (e.g. invalid email) instead of a generic failure.
+      const reason = submitError?.message && submitError.message !== 'Message could not be sent' ? submitError.message : '';
+      setError(reason || 'We could not send your message. Please call (313) 286-3586 or try again.');
+      showError('Message not sent', reason || 'Please try again or call the kitchen at (313) 286-3586.');
     } finally {
       setSubmitting(false);
     }

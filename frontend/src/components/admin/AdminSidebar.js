@@ -16,6 +16,7 @@ import {
   Inbox,
   LayoutDashboard,
   Magnet,
+  Megaphone,
   LayoutGrid,
   ListTree,
   LogOut,
@@ -64,7 +65,8 @@ const groups = [
   {
     label: 'Inbox',
     items: [
-      { label: 'Leads', href: '/admin/leads', icon: Magnet, permission: 'inbox' },
+      { label: 'Lead Dashboard', href: '/admin/marketing', icon: Megaphone, permission: 'leads' },
+      { label: 'Leads', href: '/admin/leads', icon: Magnet, permission: 'leads' },
       { label: 'Contacts', href: '/admin/inbox?kind=contacts', icon: Inbox, permission: 'inbox' },
       { label: 'Reservations', href: '/admin/inbox?kind=reservations', icon: ListTree, permission: 'inbox' },
       { label: 'Event Inquiries', href: '/admin/inbox?kind=event-inquiries', icon: Inbox, permission: 'inbox' },

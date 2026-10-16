@@ -107,7 +107,7 @@ export default function BookingSection() {
     const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
     })[character]);
-    const dateFormatted = new Date(booking.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const dateFormatted = new Date(`${booking.date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
     await Swal.fire({
       ...swalBase,
       icon: 'success',

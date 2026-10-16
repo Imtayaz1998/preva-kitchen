@@ -6,30 +6,8 @@ import Shell from '@/components/admin/Shell';
 import { EmptyState, LoadingSkeleton, PageHeader, StatusBadge } from '@/components/admin/AdminUI';
 import { useConfirm } from '@/components/admin/ConfirmDialog';
 import { api } from '@/lib/admin-api';
+import { getSeoScore } from '@/lib/seo-score';
 import { BookOpen, Copy, Edit, Eye, FilePlus2, FileText, Plus, SlidersHorizontal, Trash2, X, Check, Save } from 'lucide-react';
-
-function getSeoScore(item) {
-  if (!item) return 0;
-  const kw = (item.focusKeyword || '').trim().toLowerCase();
-  const title = (item.seoTitle || item.title || '').trim();
-  const desc = (item.seoDescription || item.excerpt || '').trim();
-  const slug = (item.slug || '').trim().toLowerCase();
-  const contentTxt = String(item.content || '').replace(/<[^>]+>/g, ' ').slice(0, 800).toLowerCase();
-
-  let score = 0;
-  if (kw) {
-    score += 10;
-    if (title.toLowerCase().includes(kw)) score += 20;
-    if (title.toLowerCase().startsWith(kw)) score += 10;
-    if (desc.toLowerCase().includes(kw)) score += 20;
-    if (slug.includes(kw.replace(/\s+/g, '-'))) score += 10;
-    if (contentTxt.includes(kw)) score += 10;
-  }
-  if (title.length >= 35 && title.length <= 60) score += 10;
-  if (desc.length >= 100 && desc.length <= 160) score += 10;
-
-  return score;
-}
 
 function ContentList() {
   const confirmAction = useConfirm();
@@ -488,7 +466,7 @@ function ContentList() {
                           return (
                             <a
                               href={`/admin/content/edit?id=${x.id}&type=${type}`}
-                              title={`Rank Math SEO Score: ${score}/100. Click to edit SEO.`}
+                              title={`SEO score (Rank Math–style checks): ${score}/100. Click to see what to improve.`}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',

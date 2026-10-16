@@ -758,7 +758,7 @@ async function storeEnquiry(collectionName, refPrefix, document, { action, entit
   const { insertedId } = await target.insertOne({ ...document, status: 'NEW', createdAt: now, pageUrl: pageUrl || null });
   await logActivity({ user: null, ip }, action, entity, name);
 
-  const referenceId = buildReferenceId(refPrefix, insertedId);
+  const referenceId = document.referenceId || buildReferenceId(refPrefix, insertedId);
   const enriched = { ...document, referenceId, submittedAt: now, pageUrl: pageUrl || null };
 
   if (!skipEmail) {
@@ -793,9 +793,9 @@ post('/reservations', async ({ body, ip: rawIp, request }) => {
   if (!internal && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== date)) {
     throw badRequest('Enter a valid reservation date.');
   }
-  // Same 1–30 range the public reservation form route accepts.
-  if (!Number.isInteger(guests) || guests < 1 || guests > 30) {
-    throw badRequest('Guests must be a whole number between 1 and 30.');
+  // Same 1–200 range the public reservation form route accepts (catering / group requests go up to 200).
+  if (!Number.isInteger(guests) || guests < 1 || guests > 200) {
+    throw badRequest('Guests must be a whole number between 1 and 200.');
   }
 
   const doc = {
@@ -805,8 +805,9 @@ post('/reservations', async ({ body, ip: rawIp, request }) => {
     guests,
     date,
     time,
-    occasion: cleanText(body?.occasion, 80),
-    notes: cleanText(body?.notes, 1000)
+    occasion: cleanText(body?.occasion, 120),
+    notes: cleanText(body?.notes, 1000),
+    ...(internal && body?.referenceId ? { referenceId: cleanText(body.referenceId, 40) } : {})
   };
 
   const idempotencyKey = { name, email, phone, date: doc.date, time: doc.time };
@@ -867,7 +868,8 @@ post('/contact', async ({ body, ip: rawIp, request }) => {
     phone: cleanText(body?.phone, 40),
     subject: cleanText(body?.subject || body?.inquiry, 200),
     message,
-    formSource: cleanText(body?.formSource, 60) || 'CONTACT'
+    formSource: cleanText(body?.formSource, 60) || 'CONTACT',
+    ...(internal && body?.referenceId ? { referenceId: cleanText(body.referenceId, 40) } : {})
   };
 
   const idempotencyKey = { name, email, message };
@@ -995,6 +997,7 @@ post('/career-applications', async ({ body, ip: rawIp, request }) => {
     sourceChannel: 'Preva careers website',
     pageUrl: cleanText(body?.pageUrl, 300) || null,
     status: 'NEW',
+    ...(internal && body?.referenceId ? { referenceId: cleanText(body.referenceId, 40) } : {}),
     responseDueAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
     firstContactAt: null,
     internalNotes: '',
@@ -1009,7 +1012,7 @@ post('/career-applications', async ({ body, ip: rawIp, request }) => {
 
   await logActivity({ user: null, ip }, 'CREATE', 'CAREER_APPLICATION', `${firstName} ${lastName} — ${role}`);
 
-  const referenceId = buildReferenceId('APP', insertedId);
+  const referenceId = document.referenceId || buildReferenceId('APP', insertedId);
   const pageUrl = cleanText(body?.pageUrl, 300) || request?.headers?.referer || '';
   const emailData = {
     ...document,

@@ -60,7 +60,7 @@ export async function currentUser(request) {
   return { id: user._id.toString(), email: user.email, role: user.role, name: user.name || '', mustChangePassword: user.mustChangePassword === true };
 }
 
-export const ROLES = ['SUPER_ADMIN', 'ADMIN', 'EDITOR', 'AUTHOR', 'CAREERS_MANAGER'];
+export const ROLES = ['SUPER_ADMIN', 'ADMIN', 'EDITOR', 'AUTHOR', 'CAREERS_MANAGER', 'MARKETING'];
 
 export function hasRole(user, ...allowed) {
   return Boolean(user && allowed.includes(user.role));

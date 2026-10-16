@@ -13,8 +13,18 @@ const CAREERS_MANAGER_ROUTES = [
   '/admin/profile'
 ];
 
+const MARKETING_ROUTES = [
+  '/admin/marketing',
+  '/admin/leads',
+  '/admin/profile'
+];
+
 function isCareersManagerRoute(pathname) {
   return CAREERS_MANAGER_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
+function isMarketingRoute(pathname) {
+  return MARKETING_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 }
 
 export default function Shell({ children }) {
@@ -85,6 +95,8 @@ export default function Shell({ children }) {
             router.replace('/admin/profile?first=1');
           } else if (activeUser.role === 'CAREERS_MANAGER' && !isCareersManagerRoute(pathname)) {
             router.replace('/admin/careers');
+          } else if (activeUser.role === 'MARKETING' && !isMarketingRoute(pathname)) {
+            router.replace('/admin/marketing');
           }
         }
       })
@@ -105,7 +117,8 @@ export default function Shell({ children }) {
 
   // Poll for inbox notifications
   useEffect(() => {
-    if (!user) return;
+    // Marketing accounts cannot read the dashboard counts the badges come from.
+    if (!user || user.role === 'MARKETING') return;
     let active = true;
 
     const fetchCounts = async () => {
@@ -189,6 +202,7 @@ export default function Shell({ children }) {
 
   const role = user.role;
   const careersManager = role === 'CAREERS_MANAGER';
+  const marketing = role === 'MARKETING';
 
   if (careersManager && !isCareersManagerRoute(pathname)) {
     return (
@@ -198,10 +212,18 @@ export default function Shell({ children }) {
     );
   }
 
+  if (marketing && !isMarketingRoute(pathname)) {
+    return (
+      <div className="admin-auth-loading" aria-live="polite">
+        <div className="loader">Opening your Lead Dashboard…</div>
+      </div>
+    );
+  }
+
   const permissions = {
-    dashboard: !careersManager,
-    content: !careersManager,
-    media: !careersManager,
+    dashboard: !careersManager && !marketing,
+    content: !careersManager && !marketing,
+    media: !careersManager && !marketing,
     careers: role === 'SUPER_ADMIN' || role === 'ADMIN' || careersManager,
     users: role === 'SUPER_ADMIN' || role === 'ADMIN',
     settings: role === 'SUPER_ADMIN' || role === 'ADMIN',
@@ -213,7 +235,8 @@ export default function Shell({ children }) {
     ordering: role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'EDITOR',
     taxonomies: role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'EDITOR',
     pages: role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'EDITOR',
-    inbox: role === 'SUPER_ADMIN' || role === 'ADMIN'
+    inbox: role === 'SUPER_ADMIN' || role === 'ADMIN',
+    leads: role === 'SUPER_ADMIN' || role === 'ADMIN' || marketing
   };
 
   return (

@@ -6,6 +6,7 @@ import Shell from '@/components/admin/Shell';
 import { LoadingSkeleton, PageHeader } from '@/components/admin/AdminUI';
 import RichTextEditor from '@/components/admin/RichTextEditor';
 import { api } from '@/lib/admin-api';
+import { analyzeSeo } from '@/lib/seo-score';
 import { BookOpen, FileText, Eye, ChevronDown, ChevronRight } from 'lucide-react';
 
 function fileToDataUrl(file) {
@@ -1598,29 +1599,7 @@ function EditContentForm() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   {/* Real-time Rank Math Score Pill */}
                   {(() => {
-                    const kw = (form.focusKeyword || '').trim().toLowerCase();
-                    const title = (form.seoTitle || form.title || '').trim();
-                    const desc = (form.seoDescription || form.excerpt || '').trim();
-                    const slug = (form.slug || '').trim().toLowerCase();
-                    const rawContent = String(form.content || '');
-                    const cleanContent = rawContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                    const wordCount = cleanContent ? cleanContent.split(/\s+/).length : 0;
-
-                    let score = 0;
-                    if (kw) {
-                      score += 10;
-                      if (title.toLowerCase().includes(kw)) score += 15;
-                      if (title.toLowerCase().startsWith(kw)) score += 5;
-                      if (desc.toLowerCase().includes(kw)) score += 15;
-                      if (slug.includes(kw.replace(/\s+/g, '-'))) score += 10;
-                      if (cleanContent.slice(0, 500).toLowerCase().includes(kw)) score += 10;
-                      if ((rawContent.match(/<h[23][^>]*>(.*?)<\/h[23]>/gi) || []).some(h => h.toLowerCase().includes(kw))) score += 10;
-                      if ((rawContent.match(/<img[^>]+alt=["']([^"']*)["'][^>]*>/gi) || []).some(img => img.toLowerCase().includes(kw))) score += 5;
-                    }
-                    if (title.length >= 35 && title.length <= 60) score += 5;
-                    if (desc.length >= 100 && desc.length <= 160) score += 5;
-                    if (wordCount >= 300) score += 5;
-                    if (wordCount >= 600) score += 5;
+                    const { score } = analyzeSeo(form);
 
                     const scoreColor = score >= 80 ? '#4caf50' : score >= 50 ? '#ffa726' : '#ef5350';
                     const scoreBg = score >= 80 ? 'rgba(76,175,80,0.18)' : score >= 50 ? 'rgba(255,167,38,0.18)' : 'rgba(239,83,80,0.18)';
@@ -1712,7 +1691,7 @@ function EditContentForm() {
                       transition: 'all 150ms ease'
                     }}
                   >
-                    ✨ Auto-Fill SEO (Optimal 100% Score)
+                    ✨ Auto-Fill SEO title, description & keyword
                   </button>
 
                   {/* SEO Sub-Tabs (General / Social / Advanced) */}
@@ -1914,44 +1893,35 @@ function EditContentForm() {
                         })()}
                       </div>
 
-                      {/* Comprehensive Rank Math 12-Item Content Analysis Checklist */}
+                      {/* SEO analysis — the same checks that produce the score */}
                       {(() => {
-                        const kw = (form.focusKeyword || '').trim().toLowerCase();
-                        const title = (form.seoTitle || form.title || '').trim();
-                        const desc = (form.seoDescription || form.excerpt || '').trim();
-                        const slug = (form.slug || '').trim().toLowerCase();
-                        const rawContent = String(form.content || '');
-                        const cleanContent = rawContent.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-                        const wordCount = cleanContent ? cleanContent.split(/\s+/).length : 0;
-
-                        const checks = [
-                          { label: 'Keyword in SEO Title', pass: kw && title.toLowerCase().includes(kw) },
-                          { label: 'Keyword in Meta Description', pass: kw && desc.toLowerCase().includes(kw) },
-                          { label: 'Keyword in URL Slug', pass: kw && slug.includes(kw.replace(/\s+/g, '-')) },
-                          { label: 'Keyword in First Paragraph', pass: kw && cleanContent.slice(0, 400).toLowerCase().includes(kw) },
-                          { label: 'Keyword in Subheading (H2/H3)', pass: kw && (rawContent.match(/<h[23][^>]*>(.*?)<\/h[23]>/gi) || []).some(h => h.toLowerCase().includes(kw)) },
-                          { label: 'Keyword in Image Alt Text', pass: kw && (rawContent.match(/<img[^>]+alt=["']([^"']*)["'][^>]*>/gi) || []).some(img => img.toLowerCase().includes(kw)) },
-                          { label: `Content Length (${wordCount} words, min 600)`, pass: wordCount >= 600 },
-                          { label: 'Internal Links Present', pass: /<a[^>]+href=["'](\/|https?:\/\/(www\.)?prevakitchen\.com)[^"']*["']/i.test(rawContent) },
-                          { label: 'External Authoritative Links', pass: /<a[^>]+href=["']https?:\/\/(?!(www\.)?prevakitchen\.com)[^"']+["']/i.test(rawContent) },
-                          { label: 'SEO Title Length (35-60 chars)', pass: title.length >= 35 && title.length <= 60 },
-                          { label: 'Meta Description Length (100-160 chars)', pass: desc.length >= 100 && desc.length <= 160 }
-                        ];
-
-                        const passedCount = checks.filter(c => c.pass).length;
-
+                        const analysis = analyzeSeo(form);
+                        const failing = analysis.groups.flatMap((group) => group.checks).filter((item) => !item.pass).length;
                         return (
-                          <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '6px', padding: '10px 12px', fontSize: '0.74rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '6px', padding: '10px 12px', fontSize: '0.74rem', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)' }}>📋 Content SEO Analyzer:</span>
-                              <span style={{ fontSize: '0.68rem', color: passedCount >= 8 ? '#81c784' : '#ffa726', fontWeight: 700 }}>
-                                {passedCount}/{checks.length} Passed
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--gold)' }}>📋 SEO analysis</span>
+                              <span style={{ fontSize: '0.68rem', color: failing ? '#ffa726' : '#81c784', fontWeight: 700 }}>
+                                {failing ? `${failing} to improve` : 'All checks passed'}
                               </span>
                             </div>
-                            {checks.map((item, idx) => (
-                              <div key={idx} style={{ color: item.pass ? '#81c784' : '#888', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span>{item.pass ? '✓' : '○'}</span>
-                                {item.label}
+                            {analysis.groups.map((group) => (
+                              <div key={group.title} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <div style={{ fontSize: '0.64rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8a7f70' }}>
+                                  {group.title} · {group.checks.reduce((sum, item) => sum + item.earned, 0)}/{group.checks.reduce((sum, item) => sum + item.points, 0)}
+                                </div>
+                                {group.checks.map((item) => {
+                                  const color = item.pass ? '#81c784' : item.earned > 0 ? '#ffa726' : '#ef7a7a';
+                                  return (
+                                    <div key={item.id} style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
+                                      <span style={{ color, fontWeight: 800, width: 12, flexShrink: 0 }}>{item.pass ? '✓' : item.earned > 0 ? '◐' : '✕'}</span>
+                                      <div style={{ minWidth: 0 }}>
+                                        <div style={{ color: item.pass ? '#cfe8d1' : '#ddd' }}>{item.label} <span style={{ color: '#6f6658' }}>({item.earned}/{item.points})</span></div>
+                                        {!item.pass && item.hint && <div style={{ color: '#8a8070', fontSize: '0.68rem', lineHeight: 1.4, marginTop: 1 }}>{item.hint}</div>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ))}
                           </div>

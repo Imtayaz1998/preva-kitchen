@@ -692,7 +692,7 @@ get('/admin/users', { auth: true, roles: MANAGE }, async ({ user }) => {
 post('/admin/users', { auth: true, roles: MANAGE }, async (ctx) => {
   const email = cleanEmail(ctx.body?.email);
   const password = String(ctx.body?.password || '');
-  const role = ['SUPER_ADMIN', 'ADMIN', 'EDITOR', 'AUTHOR', 'CAREERS_MANAGER'].includes(ctx.body?.role) ? ctx.body.role : 'AUTHOR';
+  const role = ['SUPER_ADMIN', 'ADMIN', 'EDITOR', 'AUTHOR', 'CAREERS_MANAGER', 'MARKETING'].includes(ctx.body?.role) ? ctx.body.role : 'AUTHOR';
 
   if (!email) throw badRequest('An email address is required.');
   if (password.length < 12) throw badRequest('Use at least 12 characters for the password.');
@@ -734,7 +734,7 @@ put('/admin/users/:id', { auth: true, roles: MANAGE }, async (ctx) => {
     if (clash) throw badRequest('That email address is already registered.');
     update.email = nextEmail;
   }
-  if (ctx.body?.role && ['SUPER_ADMIN', 'ADMIN', 'EDITOR', 'AUTHOR', 'CAREERS_MANAGER'].includes(ctx.body.role)) {
+  if (ctx.body?.role && ['SUPER_ADMIN', 'ADMIN', 'EDITOR', 'AUTHOR', 'CAREERS_MANAGER', 'MARKETING'].includes(ctx.body.role)) {
     if (ctx.user.role !== 'SUPER_ADMIN' && ctx.body.role === 'SUPER_ADMIN') throw forbidden('Only the site owner can grant Super Admin access.');
     update.role = ctx.body.role;
   }
@@ -1019,8 +1019,11 @@ const LEAD_SOURCES = {
   }
 };
 
-const LEAD_COMMON_FIELDS = ['_id', 'name', 'email', 'phone', 'status', 'createdAt', 'updatedAt', 'pageUrl'];
+const LEAD_COMMON_FIELDS = ['_id', 'name', 'email', 'phone', 'status', 'createdAt', 'updatedAt', 'pageUrl', 'pipeline'];
 const INBOX_LEAD_STATUS = ['NEW', 'READ', 'CONFIRMED', 'ARCHIVED'];
+// Sales pipeline for customer leads. Kept in its own `pipeline` field so the
+// inbox status (NEW / READ / CONFIRMED) the other admin pages use is untouched.
+const LEAD_STAGES = ['PENDING', 'CONTACTED', 'FOLLOW_UP', 'CONVERTED', 'REJECTED'];
 
 function leadDetails(row, lifted) {
   const skip = new Set([...LEAD_COMMON_FIELDS, ...lifted]);
@@ -1050,6 +1053,11 @@ function toLead(type, row, ctx) {
     createdAt: row.createdAt || null,
     updatedAt: row.updatedAt || null,
     resume: type === 'career' && row.resume ? { name: row.resume.name, mimeType: row.resume.mimeType, size: row.resume.size } : null,
+    stage: type === 'career' ? null : (row.pipeline?.stage || 'PENDING'),
+    followUpAt: row.pipeline?.followUpAt || null,
+    stageUpdatedAt: row.pipeline?.updatedAt || null,
+    stageUpdatedBy: row.pipeline?.updatedBy || '',
+    stageHistory: (row.pipeline?.history || []).slice(-30),
     details: leadDetails(row, source.lifted)
   };
 }
@@ -1060,7 +1068,7 @@ function leadSource(type) {
   return source;
 }
 
-get('/admin/leads', { auth: true, roles: MANAGE }, async () => {
+get('/admin/leads', { auth: true, roles: [...MANAGE, 'MARKETING'] }, async () => {
   const jobs = await careerJobsCollection();
   const jobRows = await jobs.find({}, { projection: { slug: 1, title: 1 } }).toArray();
   const ctx = { roleNames: { 'general-application': 'General application', ...Object.fromEntries(jobRows.map((job) => [job.slug, job.title])) } };
@@ -1076,7 +1084,57 @@ get('/admin/leads', { auth: true, roles: MANAGE }, async () => {
   return {
     leads,
     types: Object.fromEntries(Object.entries(LEAD_SOURCES).map(([type, source]) => [type, source.label])),
-    statuses: { inbox: INBOX_LEAD_STATUS, career: CAREER_APPLICATION_STATUS }
+    statuses: { inbox: INBOX_LEAD_STATUS, career: CAREER_APPLICATION_STATUS },
+    stages: LEAD_STAGES
+  };
+});
+
+// Move a customer lead along the pipeline, add a note, or set a follow-up date.
+// Marketing accounts may do this; status changes and deletes stay admin-only.
+put('/admin/leads/:type/:id/pipeline', { auth: true, roles: [...MANAGE, 'MARKETING'] }, async (ctx) => {
+  const source = leadSource(ctx.params.type);
+  if (ctx.params.type === 'career') throw badRequest('Career applications use the hiring pipeline.');
+
+  const stage = ctx.body?.stage ? cleanText(ctx.body.stage, 20).toUpperCase() : '';
+  if (stage && !LEAD_STAGES.includes(stage)) throw badRequest('That is not a valid stage.');
+  const note = cleanText(ctx.body?.note, 1000);
+  const hasFollowUp = ctx.body && Object.prototype.hasOwnProperty.call(ctx.body, 'followUpAt');
+  let followUpAt = null;
+  if (hasFollowUp && ctx.body.followUpAt) {
+    followUpAt = new Date(ctx.body.followUpAt);
+    if (Number.isNaN(followUpAt.getTime())) throw badRequest('Follow-up date is not valid.');
+  }
+  if (!stage && !note && !hasFollowUp) throw badRequest('Nothing to update.');
+
+  const target = await col(source.collection);
+  const id = asObjectId(ctx.params.id);
+  const current = id ? await target.findOne({ _id: id }, { projection: { pipeline: 1 } }) : null;
+  if (!current) throw notFound('Lead not found.');
+
+  const now = new Date();
+  const previous = current.pipeline?.stage || 'PENDING';
+  const set = { 'pipeline.updatedAt': now, 'pipeline.updatedBy': ctx.user.email, updatedAt: now };
+  if (stage) set['pipeline.stage'] = stage;
+  if (hasFollowUp) set['pipeline.followUpAt'] = followUpAt;
+  // Closed leads need no reminder.
+  if (stage === 'CONVERTED' || stage === 'REJECTED') set['pipeline.followUpAt'] = null;
+
+  const action = [
+    stage && stage !== previous ? `${previous} → ${stage}` : '',
+    hasFollowUp && !(stage === 'CONVERTED' || stage === 'REJECTED') ? (followUpAt ? `Follow-up set for ${followUpAt.toISOString().slice(0, 10)}` : 'Follow-up cleared') : ''
+  ].filter(Boolean).join(' · ') || 'Note added';
+  const entry = { at: now, by: ctx.user.email, action, ...(note ? { note } : {}) };
+
+  await target.updateOne({ _id: id }, { $set: set, $push: { 'pipeline.history': { $each: [entry], $slice: -100 } } });
+  await logActivity(ctx, 'UPDATE', 'LEAD', `${source.label} ${ctx.params.id} pipeline: ${action}`);
+  const updated = await target.findOne({ _id: id }, { projection: { pipeline: 1 } });
+  return {
+    ok: true,
+    stage: updated.pipeline?.stage || 'PENDING',
+    followUpAt: updated.pipeline?.followUpAt || null,
+    stageUpdatedAt: now,
+    stageUpdatedBy: ctx.user.email,
+    stageHistory: (updated.pipeline?.history || []).slice(-30)
   };
 });
 
