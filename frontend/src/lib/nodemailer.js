@@ -231,10 +231,6 @@ function wrapEmail({ title, subtitle, referenceId, badgeText = 'Website Notifica
                   <td align="left" valign="middle">
                     <h1 style="margin:0;color:#FFFFFF;font-family:'Cinzel',Georgia,serif;font-size:19px;font-weight:600;line-height:1.25;letter-spacing:0.2px;">${escapeHtml(title)}</h1>
                   </td>
-                  ${referenceId ? `
-                  <td align="right" valign="middle" style="white-space:nowrap;">
-                    <span style="display:inline-block;background:linear-gradient(135deg,#2E2414 0%,#1A140A 100%);color:#F5D899;border:1px solid #735728;padding:4px 12px;border-radius:6px;font-weight:700;font-family:Consolas,monospace;font-size:11px;letter-spacing:1px;">#${escapeHtml(referenceId)}</span>
-                  </td>` : ''}
                 </tr>
               </table>
               ${subtitle ? `<p style="margin:0 0 18px;color:#B3A795;font-size:13px;line-height:1.55;">${escapeHtml(subtitle)}</p>` : ''}
@@ -304,7 +300,7 @@ function wrapCustomerConfirmation({ eyebrow = 'PREVA Concierge', heading, name, 
   </style>
 </head>
 <body style="margin:0;padding:0;background-color:#070708;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(heading)} · Reference #${escapeHtml(referenceId || '')}</div>
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(heading)}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#070708;width:100%;padding:32px 12px;table-layout:fixed;">
     <tr>
       <td align="center" valign="top">
@@ -319,12 +315,7 @@ function wrapCustomerConfirmation({ eyebrow = 'PREVA Concierge', heading, name, 
           </tr>
           <tr>
             <td class="content-cell" style="padding:26px 34px 22px;">
-              <p style="margin:0 0 8px;color:#C9A96E;font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">${escapeHtml(eyebrow)}</p>
               <h1 style="margin:0 0 10px;color:#FFFFFF;font-family:'Cinzel',Georgia,serif;font-size:19px;font-weight:600;line-height:1.25;letter-spacing:0.2px;">${escapeHtml(heading)}</h1>
-              ${referenceId ? `
-              <div style="margin:0 0 16px;">
-                <span style="display:inline-block;background:linear-gradient(135deg,#2E2414 0%,#1A140A 100%);color:#F5D899;border:1px solid #735728;padding:4px 12px;border-radius:6px;font-weight:700;font-family:Consolas,monospace;font-size:11px;letter-spacing:1px;">REFERENCE #${escapeHtml(referenceId)}</span>
-              </div>` : ''}
 
               <p style="margin:0 0 18px;color:#DDD4C7;font-size:13.5px;line-height:1.65;">
                 Hello <b style="color:#FFF8EC;">${escapeHtml(name || 'there')}</b>,<br><br>${introText}
@@ -342,15 +333,6 @@ function wrapCustomerConfirmation({ eyebrow = 'PREVA Concierge', heading, name, 
                 </tr>
               </table>` : ''}
 
-              ${nextSteps ? `
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg, #1A150D 0%, #120F09 100%);border-left:3px solid #D4AF37;border-radius:10px;border-top:1px solid #2C2213;border-right:1px solid #2C2213;border-bottom:1px solid #2C2213;margin-bottom:20px;">
-                <tr>
-                  <td style="padding:14px 18px;">
-                    <p style="margin:0 0 4px;color:#F5D899;font-size:12px;font-weight:700;letter-spacing:0.4px;">✨ What happens next</p>
-                    <p style="margin:0;color:#C4BBAE;font-size:12px;line-height:1.6;">${nextSteps}</p>
-                  </td>
-                </tr>
-              </table>` : ''}
 
               <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 10px;">
                 <tr>
@@ -461,7 +443,7 @@ export async function sendReservationEmail(data) {
       tableRows,
       footerNote: `Reply directly to this email to contact ${data.name} (${data.email})`
     }),
-    text: `New Table Reservation Request\n\nName: ${data.name}\nPhone: ${data.phone}\nEmail: ${data.email}\nGuests: ${data.guests}\nDate: ${data.date}\nTime: ${data.time}\nOccasion: ${data.occasion || 'N/A'}\nNotes: ${data.notes || 'None'}\nReference: ${data.referenceId}\nSubmitted: ${submitted}`
+    text: `New Table Reservation Request\n\nName: ${data.name}\nPhone: ${data.phone}\nEmail: ${data.email}\nGuests: ${data.guests}\nDate: ${data.date}\nTime: ${data.time}\nOccasion: ${data.occasion || 'N/A'}\nNotes: ${data.notes || 'None'}\nSubmitted: ${submitted}`
   }).catch((err) => {
     console.error('[nodemailer] Admin reservation email delivery failed:', err.message);
     return { ok: false, error: err.message };
@@ -478,7 +460,7 @@ export async function sendReservationEmail(data) {
         heading: 'Your table request is with our host.',
         name: data.name,
         referenceId: data.referenceId,
-        introText: `thank you for choosing ${BRAND_NAME}. We have received your reservation request for <b>${escapeHtml(data.guests)} guests</b> on <b>${escapeHtml(data.date)} at ${escapeHtml(data.time)}</b>.`,
+        introText: `Thank you for choosing ${BRAND_NAME}. We've received your table request for <b>${escapeHtml(data.guests)} guests</b> on <b>${escapeHtml(data.date)} at ${escapeHtml(data.time)}</b>.`,
         summaryRows:
           row('Party Size', `${data.guests} guests`) +
           row('Date & Time', `${data.date} at ${data.time}`) +
@@ -486,7 +468,14 @@ export async function sendReservationEmail(data) {
           row('Notes', data.notes, false, true),
         nextSteps: `Our front-of-house host will review seating availability and contact you if anything else is needed. For urgent inquiries, call ${BRAND_PHONE}.`
       }),
-      text: `Hello ${data.name},\n\nThank you for choosing Preva Kitchen! We have received your reservation request for ${data.guests} guests on ${data.date} at ${data.time}.\n\nReference: #${data.referenceId}\nParty Size: ${data.guests} guests\nDate & Time: ${data.date} at ${data.time}\nOccasion: ${data.occasion || 'N/A'}\nSpecial Notes: ${data.notes || 'None'}\n\nOur front-of-house host will review seating availability and contact you if anything else is needed. For urgent inquiries, call ${BRAND_PHONE}.\n\nPreva Kitchen\n${BRAND_ADDRESS}\nPhone: ${BRAND_PHONE}\n${getSiteUrl()}`
+      text: `Hello ${data.name},
+
+Thank you for choosing Preva Kitchen. We've received your table request for ${data.guests} guests on ${data.date} at ${data.time}.
+
+Preva Kitchen
+${BRAND_ADDRESS}
+Phone: ${BRAND_PHONE}
+${getSiteUrl()}`
     }).catch((confErr) => {
       console.warn('[nodemailer] Customer confirmation email skipped or failed:', confErr.message);
       return { ok: false, error: confErr.message };
@@ -530,7 +519,7 @@ export async function sendContactEmail(data) {
       tableRows,
       footerNote: `Reply directly to this email to contact ${data.name} (${data.email})`
     }),
-    text: `New Contact Form Enquiry\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone || 'N/A'}\nSubject: ${data.subject || 'General'}\nMessage: ${data.message}\nReference: ${data.referenceId}\nSubmitted: ${submitted}`
+    text: `New Contact Form Enquiry\n\nName: ${data.name}\nEmail: ${data.email}\nPhone: ${data.phone || 'N/A'}\nSubject: ${data.subject || 'General'}\nMessage: ${data.message}\nSubmitted: ${submitted}`
   }).catch((err) => {
     console.error('[nodemailer] Admin contact email delivery failed:', err.message);
     return { ok: false, error: err.message };
@@ -548,13 +537,20 @@ export async function sendContactEmail(data) {
         heading: 'We have received your message.',
         name: data.name,
         referenceId: data.referenceId,
-        introText: `thank you for reaching out to ${BRAND_NAME}. Our team has received your message and will get back to you shortly.`,
+        introText: `Thank you for contacting ${BRAND_NAME}. We've received your message and will get back to you soon.`,
         summaryRows:
           row('Subject', data.subject || 'General Inquiry') +
           row('Message', data.message, false, true),
         nextSteps: `We typically reply within 1 business day. For urgent orders or same-day reservations, please call us directly at ${BRAND_PHONE}.`
       }),
-      text: `Hello ${data.name},\n\nThank you for reaching out to Preva Kitchen! Our team has received your message regarding "${data.subject || 'General Inquiry'}".\n\nReference: #${data.referenceId}\nMessage: ${data.message}\n\nWe typically reply within 1 business day. For urgent orders or same-day reservations, please call us directly at ${BRAND_PHONE}.\n\nPreva Kitchen\n${BRAND_ADDRESS}\nPhone: ${BRAND_PHONE}\n${getSiteUrl()}`
+      text: `Hello ${data.name},
+
+Thank you for contacting Preva Kitchen. We've received your message and will get back to you soon.
+
+Preva Kitchen
+${BRAND_ADDRESS}
+Phone: ${BRAND_PHONE}
+${getSiteUrl()}`
     }).catch((confErr) => {
       console.warn('[nodemailer] Customer confirmation email skipped or failed:', confErr.message);
       return { ok: false, error: confErr.message };
@@ -622,7 +618,7 @@ export async function sendCareerEmail(data) {
       tableRows,
       footerNote: `Reply directly to this email to contact ${candidateName} (${data.email})`
     }),
-    text: `New Career Application\n\nCandidate: ${candidateName}\nEmail: ${data.email}\nPhone: ${data.phone}\nPosition: ${position}\nAvailability: ${data.availability || 'N/A'}\nStart Date: ${data.startDate || 'N/A'}\nMessage: ${data.message || 'None'}\nResume: ${data.resume?.name || 'None'}\nReference: ${data.referenceId}\nSubmitted: ${submitted}`
+    text: `New Career Application\n\nCandidate: ${candidateName}\nEmail: ${data.email}\nPhone: ${data.phone}\nPosition: ${position}\nAvailability: ${data.availability || 'N/A'}\nStart Date: ${data.startDate || 'N/A'}\nMessage: ${data.message || 'None'}\nResume: ${data.resume?.name || 'None'}\nSubmitted: ${submitted}`
   }).catch((err) => {
     console.error('[nodemailer] Admin career email delivery failed:', err.message);
     return { ok: false, error: err.message };
@@ -640,14 +636,21 @@ export async function sendCareerEmail(data) {
         heading: 'Thank you for your interest in joining PREVA.',
         name: candidateName,
         referenceId: data.referenceId,
-        introText: `thank you for applying to ${BRAND_NAME}. We have received your application for the <b>${escapeHtml(position)}</b> opportunity.`,
+        introText: `Thank you for applying to ${BRAND_NAME}. We've received your application for the <b>${escapeHtml(position)}</b> position.`,
         summaryRows:
           row('Position', position) +
           row('Availability', data.availability) +
           row('Target Start Date', data.startDate, false, true),
         nextSteps: 'Our hiring team reviews applications and will reach out by phone or email if your qualifications match an active opening. No further action is required at this time.'
       }),
-      text: `Hello ${candidateName},\n\nThank you for applying to Preva Kitchen! We have received your application for the ${position} position.\n\nReference: #${data.referenceId}\nAvailability: ${data.availability || 'N/A'}\nTarget Start Date: ${data.startDate || 'N/A'}\n\nOur hiring team reviews applications and will reach out by phone or email if your qualifications match an active opening.\n\nPreva Kitchen\n${BRAND_ADDRESS}\nPhone: ${BRAND_PHONE}\n${getSiteUrl()}`
+      text: `Hello ${candidateName},
+
+Thank you for applying to Preva Kitchen. We've received your application for the ${position} position.
+
+Preva Kitchen
+${BRAND_ADDRESS}
+Phone: ${BRAND_PHONE}
+${getSiteUrl()}`
     }).catch((confErr) => {
       console.warn('[nodemailer] Candidate confirmation email skipped or failed:', confErr.message);
       return { ok: false, error: confErr.message };

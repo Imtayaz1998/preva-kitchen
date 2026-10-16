@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { after, NextResponse } from 'next/server';
 import { saveToBackend } from '@/lib/backend-sync';
 import { sendCareerEmail } from '@/lib/nodemailer';
 import { isValidEmail, INVALID_EMAIL_MESSAGE } from '@/lib/email-validation';
@@ -120,18 +120,17 @@ export async function POST(request) {
       submittedAt
     };
 
-    // 4 & 5. Concurrent DB sync & Email dispatch for instant UI response.
-    // Every submission is saved to the backend so it shows up in the admin.
-    const dbSyncPromise = saveToBackend('/career-applications', {
+    // 4. Save first so every application shows up in the admin.
+    await saveToBackend('/career-applications', {
       referenceId, firstName, lastName, email, phone, role, availability, startDate, message,
       consent: true, resume, pageUrl
     }, request, 'career-applications');
 
-    const emailPromise = sendCareerEmail(applicationData).catch((emailErr) => {
+    // 5. Emails (two SMTP logins + the CV upload take several seconds) are sent
+    // after the response, so the applicant is not left waiting on Gmail.
+    after(() => sendCareerEmail(applicationData).catch((emailErr) => {
       console.warn('[career-applications] Email dispatch notice:', emailErr.message);
-    });
-
-    await Promise.allSettled([dbSyncPromise, emailPromise]);
+    }));
 
     return NextResponse.json({ ok: true, referenceId }, { status: 201 });
   } catch (error) {

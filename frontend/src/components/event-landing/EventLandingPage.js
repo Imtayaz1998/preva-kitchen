@@ -160,7 +160,7 @@ export default function EventLandingPage({ page }) {
       <section id="packages" className={`${s.section} ${s.sectionAlt}`}>
         <div className={s.container}>
           <Heading eyebrow={page.packages.eyebrow} icon={PartyPopper} title={page.packages.title} description={page.packages.text} />
-          <div className={s.grid3}>
+          <div className={s.pkgGrid}>
             {page.packages.items.map((pkg) => (
               <Card key={pkg.title} style={pkg.featured ? FEATURED_CARD : { height: '100%' }}>
                 <h3 className={s.cardTitle}>{pkg.title}</h3>

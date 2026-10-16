@@ -616,7 +616,6 @@ export async function notifyReservation(data) {
         row('Time', data.time) +
         row('Occasion', data.occasion) +
         row('Notes', data.notes) +
-        row('Reference', data.referenceId) +
         row('Submitted', submitted) +
         row('Page', data.pageUrl),
       adminLink: `${adminUrl}/reservations`,
@@ -631,7 +630,6 @@ export async function notifyReservation(data) {
       ['Guests', data.guests],
       ['Occasion', data.occasion],
       ['Notes', data.notes],
-      ['Reference', data.referenceId],
       ['Submitted', submitted]
     ])}\n\nOpen reservations: ${adminUrl}/reservations`,
     formType: 'RESERVATION',
@@ -660,8 +658,7 @@ export async function notifyVipRequest(data) {
         row('Guests', data.guests) +
         row('Date', data.date) +
         row('Occasion', data.occasion) +
-        row('Notes', data.notes) +
-        row('Reference', data.referenceId),
+        row('Notes', data.notes),
       adminLink: `${adminUrl}/vip-requests`,
       adminLabel: 'Open VIP Requests',
     }),
@@ -686,7 +683,7 @@ export async function notifyVipRequestCustomer(data) {
       heading: 'Your VIP request is with our host.',
       name: data.name,
       referenceId: data.referenceId,
-      introLine: `Thank you for your VIP reservation request at ${BRAND_NAME}. We've received your details. Our VIP host will contact you directly to confirm availability and table arrangements.`,
+      introLine: `Thank you for your VIP request at ${BRAND_NAME}. We've received your details and our VIP host will contact you soon.`,
       summaryRows:
         row('Guests', data.guests) +
         row('Date', data.date) +
@@ -697,7 +694,6 @@ export async function notifyVipRequestCustomer(data) {
       ctaHref: `${getSiteUrl()}/reservations`
     }),
     text: `Hello ${data.name || 'there'},\n\nThank you for your VIP request at PREVA Kitchen. We have received your details, and our VIP team will contact you directly.\n\n${textDetails([
-      ['Reference', data.referenceId],
       ['Date', data.date],
       ['Guests', data.guests],
       ['Occasion', data.occasion],
@@ -728,8 +724,7 @@ export async function notifyGuestList(data) {
         row('Email', data.email) +
         row('Guests', data.guests) +
         row('Event Date', data.eventDate) +
-        row('Notes', data.notes) +
-        row('Reference', data.referenceId),
+        row('Notes', data.notes),
       adminLink: `${adminUrl}/inbox?kind=guest-list`,
       adminLabel: 'Open Guest List',
     }),
@@ -754,7 +749,7 @@ export async function notifyGuestListCustomer(data) {
       heading: 'Your guest list request is received.',
       name: data.name,
       referenceId: data.referenceId,
-      introLine: `Thank you for requesting to join the guest list at ${BRAND_NAME}. We've received your request for <b>${escapeHtml(data.guests || 1)} guest(s)</b> on <b>${escapeHtml(data.eventDate || 'the selected date')}</b>.`,
+      introLine: `Thank you for joining the guest list at ${BRAND_NAME}. We've received your request for <b>${escapeHtml(data.guests || 1)} guest(s)</b> on <b>${escapeHtml(data.eventDate || 'the selected date')}</b>.`,
       summaryRows:
         row('Guests', data.guests) +
         row('Event Date', data.eventDate) +
@@ -788,7 +783,6 @@ export async function notifyContactEnquiry(data) {
         row('Phone', data.phone) +
         row('Subject', data.subject) +
         row('Message', data.message) +
-        row('Reference', data.referenceId) +
         row('Submitted', data.submittedAt ? new Date(data.submittedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '') +
         row('Page', data.pageUrl),
       adminLink: `${adminUrl}/contact-enquiries`,
@@ -838,7 +832,6 @@ export async function notifyCareerApplication(data) {
         row('Resume', data.resume?.name || 'Not provided') +
         row('Resume Type', data.resume?.mimeType) +
         row('Resume Size', data.resume?.size ? `${Math.ceil(data.resume.size / 1024)} KB` : '') +
-        row('Reference', data.referenceId) +
         row('Submitted', submitted) +
         row('Page', data.pageUrl),
       adminLink: `${adminUrl}/career-applications`,
@@ -853,7 +846,6 @@ export async function notifyCareerApplication(data) {
       ['Start Date', data.startDate],
       ['Message', data.message],
       ['Resume', data.resume?.name || 'Not provided'],
-      ['Reference', data.referenceId],
       ['Submitted', submitted]
     ])}\n\nView applications: ${adminUrl}/career-applications`,
     formType: 'CAREER_APPLICATION',
@@ -895,7 +887,7 @@ function customerConfirmationHtml({ eyebrow, heading, name, referenceId, introLi
   </style>
 </head>
 <body style="margin:0;padding:0;background-color:#070708;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(heading)} · Reference ${escapeHtml(referenceId || '')}</div>
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(heading)}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#070708;width:100%;padding:40px 14px;table-layout:fixed;">
     <tr>
       <td align="center" valign="top">
@@ -914,9 +906,7 @@ function customerConfirmationHtml({ eyebrow, heading, name, referenceId, introLi
           <!-- Content Body -->
           <tr>
             <td class="content-cell" style="padding:28px 38px 26px;">
-              <p style="margin:0 0 8px;color:#C9A96E;font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">${escapeHtml(eyebrow || 'PREVA Concierge')}</p>
               <h1 style="margin:0 0 12px;color:#FFFFFF;font-family:'Cinzel',Georgia,serif;font-size:19px;font-weight:600;line-height:1.25;letter-spacing:0.2px;">${escapeHtml(heading)}</h1>
-              ${referenceId ? `<div style="margin:0 0 18px;"><span style="display:inline-block;background:linear-gradient(135deg,#2E2414 0%,#1A140A 100%);color:#F5D899;border:1px solid #735728;padding:4px 12px;border-radius:6px;font-weight:700;font-family:Consolas,monospace;font-size:11px;letter-spacing:1px;">REFERENCE #${escapeHtml(referenceId)}</span></div>` : ''}
               <p style="margin:0 0 20px;color:#DDD4C7;font-size:13px;line-height:1.65;">
                 Hello <b style="color:#FFF8EC;">${escapeHtml(name || 'there')}</b>,<br><br>${introLine}
               </p>
@@ -928,15 +918,6 @@ function customerConfirmationHtml({ eyebrow, heading, name, referenceId, introLi
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                       ${summaryRows}
                     </table>
-                  </td>
-                </tr>
-              </table>
-              <!-- What happens next Callout -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg, #1A150D 0%, #120F09 100%);border-left:3px solid #D4AF37;border-radius:10px;border-top:1px solid #2C2213;border-right:1px solid #2C2213;border-bottom:1px solid #2C2213;margin-bottom:22px;">
-                <tr>
-                  <td style="padding:14px 18px;">
-                    <p style="margin:0 0 5px;color:#F5D899;font-size:12px;font-weight:700;letter-spacing:0.4px;">✨ What happens next</p>
-                    <p style="margin:0;color:#C4BBAE;font-size:12px;line-height:1.6;">${nextSteps}</p>
                   </td>
                 </tr>
               </table>
@@ -983,7 +964,7 @@ export async function notifyReservationCustomer(data) {
       heading: 'Your request is with our host.',
       name: data.name,
       referenceId: data.referenceId,
-      introLine: `Thank you for your reservation request at ${BRAND_NAME}. We've received your details. The PREVA team will contact you if any additional information or confirmation is required.`,
+      introLine: `Thank you for choosing ${BRAND_NAME}. We've received your table request.`,
       summaryRows:
         row('Guests', data.guests) +
         row('Date', data.date) +
@@ -995,7 +976,6 @@ export async function notifyReservationCustomer(data) {
       ctaHref: `${getSiteUrl()}/reservations`
     }),
     text: `Hello ${data.name || 'there'},\n\nThank you for your reservation request at PREVA Kitchen. We have received your details, and our team will contact you if confirmation or additional information is required.\n\n${textDetails([
-      ['Reference', data.referenceId],
       ['Date', data.date],
       ['Time', data.time],
       ['Guests', data.guests],
@@ -1021,7 +1001,7 @@ export async function notifyContactCustomer(data) {
       heading: 'Message Received!',
       name: data.name,
       referenceId: data.referenceId,
-      introLine: `Thank you for reaching out to ${BRAND_NAME}. We've received your message and someone from our team will get back to you soon.`,
+      introLine: `Thank you for contacting ${BRAND_NAME}. We've received your message and will get back to you soon.`,
       summaryRows:
         row('Subject', data.subject || 'General enquiry') +
         row('Message', data.message, false),
@@ -1058,7 +1038,6 @@ export async function notifyCareerApplicationCustomer(data) {
       ctaHref: `${getSiteUrl()}/careers`
     }),
     text: `Hello ${candidateName || 'there'},\n\nThank you for applying to PREVA Kitchen. We have received your application for the ${position} position.\n\n${textDetails([
-      ['Reference', data.referenceId],
       ['Position', position],
       ['Availability', data.availability],
       ['Available Start Date', data.startDate]
@@ -1107,7 +1086,6 @@ export async function notifyEventInquiry(data) {
         row('Guests', data.guestCount) +
         eventDetailRows(data) +
         row('Message', data.message) +
-        row('Reference', data.referenceId) +
         row('Submitted', submitted) +
         row('Page', data.pageUrl)
     }),
@@ -1120,7 +1098,6 @@ export async function notifyEventInquiry(data) {
       ['Guests', data.guestCount],
       ...(data.detailList || []),
       ['Message', data.message],
-      ['Reference', data.referenceId],
       ['Submitted', submitted],
       ['Page', data.pageUrl]
     ])}`,
@@ -1142,7 +1119,7 @@ export async function notifyEventInquiryCustomer(data) {
       heading: 'Your event inquiry is with our team.',
       name: data.name,
       referenceId: data.referenceId,
-      introLine: `Thank you for your ${escapeHtml(data.eventType)} inquiry at ${BRAND_NAME}. Here is a copy of the details you sent. Availability and final terms are confirmed directly by our events team.`,
+      introLine: `Thank you for your ${escapeHtml(data.eventType)} inquiry at ${BRAND_NAME}. We've received your details and our events team will contact you soon.`,
       summaryRows:
         row('Event Type', data.eventType) +
         row('Preferred Date', data.preferredDate) +
@@ -1155,7 +1132,6 @@ export async function notifyEventInquiryCustomer(data) {
       ctaHref: getSiteUrl()
     }),
     text: `Hello ${data.name || 'there'},\n\nThank you for your ${data.eventType} inquiry at PREVA Kitchen. Here is a copy of the details you sent. Availability and final terms are confirmed directly by our events team.\n\n${textDetails([
-      ['Reference', data.referenceId],
       ['Event Type', data.eventType],
       ['Preferred Date', data.preferredDate],
       ['Guests', data.guestCount],
