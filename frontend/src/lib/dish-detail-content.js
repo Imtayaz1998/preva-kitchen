@@ -1,7 +1,7 @@
 import { truncateAtWord } from './seo';
 
 const LOCATION = 'Preva Kitchen, 13090 Inkster Rd, Redford Township, MI 48239';
-const HOURS = 'Monday through Friday from 11:00 AM to 3:30 PM';
+const HOURS = 'Monday through Friday from 11:00 AM to 1:00 AM';
 
 /* Item-specific facts derived from the live Preva Kitchen menu. */
 export const DISH_DETAIL_PROFILES = {
@@ -112,7 +112,7 @@ export const DISH_DETAIL_PROFILES = {
   'beef-quesadillas': {
     title: 'Seasoned Beef in a Crisp Grilled Tortilla',
     preparation: 'Seasoned beef and melted cheese are grilled in a flour tortilla and served with sour cream and salsa.',
-    occasion: 'The beef version is a hearty, no-frills quesadilla for lunch, pickup or sharing.',
+    occasion: 'The beef version is a hearty, no-frills quesadilla for lunch, delivery or sharing.',
     question: 'What comes with the Beef Quesadillas?',
     answer: 'The seasoned beef-and-cheese quesadilla is served with sour cream and salsa on the side.',
     pairings: ['Fries', 'Preva Wings', 'House Salad']
@@ -144,7 +144,7 @@ export const DISH_DETAIL_PROFILES = {
   'chicken-tacos': {
     title: 'Seasoned Chicken Tacos with Fresh Slaw',
     preparation: 'Seasoned chicken is portioned into tortillas, topped with crisp fresh slaw and finished with house sauce.',
-    occasion: 'Chicken Tacos are the most familiar taco choice for an easy lunch or mixed pickup order.',
+    occasion: 'Chicken Tacos are the most familiar taco choice for an easy lunch or mixed delivery order.',
     question: 'What comes on the Chicken Tacos?',
     answer: 'The tacos are filled with seasoned chicken and topped with fresh slaw and Preva house sauce.',
     pairings: ['Fries', 'House Salad', 'Rice & Peas']
@@ -184,7 +184,7 @@ export const DISH_DETAIL_PROFILES = {
   'rasta-pasta': {
     title: 'Creamy Caribbean Pasta with Jerk Seasoning',
     preparation: 'Creamy pasta is cooked with bell peppers and Preva house jerk seasoning, with a protein choice available when ordering.',
-    occasion: 'Rasta Pasta brings the menu’s Caribbean flavors into a rich, filling main that travels well for pickup.',
+    occasion: 'Rasta Pasta brings the menu’s Caribbean flavors into a rich, filling main that travels well for delivery.',
     question: 'Can I add protein to the Rasta Pasta?',
     answer: 'Yes. Choose the available protein option when ordering; the live menu offers chicken, shrimp or steak selections.',
     pairings: ['House Salad', 'Fried Plantains', 'Steamed Cabbage']
@@ -200,7 +200,7 @@ export const DISH_DETAIL_PROFILES = {
   'preva-lamb-chops': {
     title: 'House-Seasoned Grilled Lamb Chops',
     preparation: 'Lamb chops are seasoned with the PREVA house spice blend, grilled and served with a choice of sides.',
-    occasion: 'This is the menu’s signature full entrée for a sit-down meal or a substantial pickup order.',
+    occasion: 'This is the menu’s signature full entrée for a substantial delivery order.',
     question: 'Do the Preva Lamb Chops come with sides?',
     answer: 'Yes. The grilled lamb chops are served with a choice of sides; confirm the currently available choices when ordering.',
     pairings: ['Mac & Cheese', 'Collard Greens with Turkey Meat', 'Preva Yams']
@@ -315,15 +315,15 @@ const PROFILE_ALIASES = {
 
 const CATEGORY_COPY = {
   'Preva Wings': ['Crispy Wings Made in Redford, MI', 'Wings are cooked to order and finished with the selected seasoning or sauce.', 'They work well for lunch, sharing or delivery.'],
-  'Preva Burger': ['Made-to-Order Burgers in Redford, MI', 'The burger is cooked and assembled to order.', 'Enjoy it for lunch, dine-in or delivery.'],
+  'Preva Burger': ['Made-to-Order Burgers in Redford, MI', 'The burger is cooked and assembled to order.', 'Enjoy it for lunch or delivery.'],
   Quesadillas: ['Grilled Quesadillas in Redford, MI', 'The tortilla is grilled until crisp around its hot filling.', 'Order one as a meal or a shareable plate.'],
-  Tacos: ['Fresh Tacos in Redford, MI', 'The tacos are assembled to order with seasoned filling and fresh toppings.', 'They are an easy lunch or pickup choice.'],
+  Tacos: ['Fresh Tacos in Redford, MI', 'The tacos are assembled to order with seasoned filling and fresh toppings.', 'They are an easy lunch or delivery choice.'],
   'Preva Bites': ['Shareable Bites in Redford, MI', 'The bites are prepared to order and served hot.', 'Enjoy them as a starter or build a plate with sides.'],
-  Pasta: ['Comforting Pasta in Redford, MI', 'The pasta and sauce are finished together while hot.', 'It is a filling pickup or delivery choice.'],
+  Pasta: ['Comforting Pasta in Redford, MI', 'The pasta and sauce are finished together while hot.', 'It is a filling delivery choice.'],
   Salads: ['Fresh Salads in Redford, MI', 'The salad is assembled to order with crisp produce.', 'Enjoy it alone or beside a signature dish.'],
-  'Entrées': ['Signature Entrées in Redford, MI', 'The entrée is prepared to order by the Preva kitchen.', 'It is suited to dine-in, pickup or delivery.'],
+  'Entrées': ['Signature Entrées in Redford, MI', 'The entrée is prepared to order by the Preva kitchen.', 'It is suited to delivery.'],
   Sides: ['House-Made Sides in Redford, MI', 'The side is prepared with the same care as the main menu.', 'Add it to an entrée or combine several sides.'],
-  Dessert: ['A Sweet Finish in Redford, MI', 'The dessert is prepared as a thoughtful finish.', 'Add it after a dine-in meal or to a pickup order.']
+  Dessert: ['A Sweet Finish in Redford, MI', 'The dessert is prepared as a thoughtful finish.', 'Add it to any delivery order.']
 };
 
 function asList(value) {
@@ -345,7 +345,7 @@ function fallbackFor(dish) {
   const [title, preparation, occasion] = CATEGORY_COPY[dish?.category] || [
     'Made Fresh in Redford, MI',
     `${dish?.name || 'This dish'} is prepared fresh by the Preva kitchen.`,
-    'Enjoy it for dine-in, weekday pickup or delivery.'
+    'Enjoy it for weekday delivery.'
   ];
   return { title, preparation, occasion };
 }
@@ -369,7 +369,7 @@ export function getDefaultAboutParagraphs(dish) {
     `${description} Order it${price} at ${LOCATION}.`,
     content.preparation,
     content.occasion,
-    `Order ${name} for pickup or delivery ${HOURS}. Dine in, order online, or call (313) 286-3586 for pickup.`,
+    `Order ${name} online for delivery ${HOURS}.`,
     pairings.length
       ? `Build the plate with ${pairings.slice(0, 3).join(', ')} — sensible pairings available from the same menu.`
       : 'Pair it with one of Preva’s house-made sides or another signature menu favorite.'
@@ -426,13 +426,13 @@ export function withDishArticle(name, { capitalize = false } = {}) {
 }
 
 const META_DESCRIPTION_MAX = 155;
-const DISH_META_CLOSER = 'Order pickup or delivery from Preva Kitchen in Redford Township, MI.';
+const DISH_META_CLOSER = 'Order delivery from Preva Kitchen in Redford Township, MI.';
 
 // Meta description that always ends on the full closing sentence; only the
 // dish description part is shortened (at a word boundary, with "…").
 export function getDishMetaDescription(dish) {
   const dishText = String(dish?.description || '').replace(/\s+/g, ' ').trim().replace(/[\s.]+$/, '');
-  if (!dishText) return `Order ${getDishDisplayName(dish)} for pickup or delivery from Preva Kitchen in Redford Township, MI.`;
+  if (!dishText) return `Order ${getDishDisplayName(dish)} for delivery from Preva Kitchen in Redford Township, MI.`;
   const full = `${dishText}${/[!?]$/.test(dishText) ? '' : '.'} ${DISH_META_CLOSER}`;
   if (full.length <= META_DESCRIPTION_MAX) return full;
   return `${truncateAtWord(dishText, META_DESCRIPTION_MAX - DISH_META_CLOSER.length - 1)} ${DISH_META_CLOSER}`;
@@ -456,9 +456,9 @@ export function getDefaultFaqs(dish) {
     { q: `How much ${plural ? 'do' : 'does'} ${the} cost?`, a: `${The} ${costs} ${price} at Preva Kitchen in Redford Township, MI. Prices on delivery apps may vary slightly.` },
     content.question && content.answer
       ? { q: content.question, a: content.answer }
-      : { q: `Where can I order ${the} near me?`, a: `${The} ${be} served at ${LOCATION}. Dine in, call +1 313-286-3586 for pickup, or order online for delivery.` },
-    { q: `Can I get ${the} delivered in Redford Township?`, a: `Yes — order ${the} for delivery from the Preva online shop during kitchen hours, or call +1 313-286-3586 to arrange pickup from 13090 Inkster Rd.` },
-    { q: `What goes well with ${the}?`, a: `Recommended pairings are ${pairingText}. They can be added to the same pickup or delivery order.` }
+      : { q: `Where can I order ${the} near me?`, a: `${The} ${be} made at ${LOCATION}. Order online for delivery.` },
+    { q: `Can I get ${the} delivered in Redford Township?`, a: `Yes — order ${the} online for delivery ${HOURS}.` },
+    { q: `What goes well with ${the}?`, a: `Recommended pairings are ${pairingText}. They can be added to the same delivery order.` }
   ];
 }
 

@@ -2,15 +2,17 @@
  * Preva Kitchen Operating Hours Validation
  * 
  * Operating Schedule (per restaurant footer & policy):
- * - Monday through Friday: 11:00 AM - 3:30 PM
+ * - Monday through Friday: 11:00 AM - 1:00 AM (the window runs past midnight,
+ *   so Friday orders close at 1:00 AM Saturday)
  * - Saturday & Sunday: Closed
  * - Timezone: America/Detroit (US Eastern Time)
  */
 
 export const KITCHEN_TIMEZONE = 'America/Detroit';
 export const KITCHEN_OPEN_MINUTES = 11 * 60;        // 11:00 AM = 660 mins
-export const KITCHEN_CLOSE_MINUTES = 15 * 60 + 30;   // 03:30 PM = 930 mins
+export const KITCHEN_CLOSE_MINUTES = 1 * 60;         // 01:00 AM next day = 60 mins
 export const KITCHEN_OPEN_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /**
  * Evaluates whether a given Date is within the kitchen's operating window.
@@ -33,7 +35,7 @@ export function getKitchenOperatingStatus(date = new Date(), timezone = KITCHEN_
       weekday: 'short',
       hour: 'numeric',
       minute: 'numeric',
-      hour12: false
+      hourCycle: 'h23'
     });
 
     const parts = formatter.formatToParts(date);
@@ -41,21 +43,23 @@ export function getKitchenOperatingStatus(date = new Date(), timezone = KITCHEN_
     const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10);
     const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10);
 
-    const isDayOpen = KITCHEN_OPEN_DAYS.includes(weekday);
     const currentMinutes = hour * 60 + minute;
-    const isTimeOpen = currentMinutes >= KITCHEN_OPEN_MINUTES && currentMinutes <= KITCHEN_CLOSE_MINUTES;
+    // Between midnight and 1:00 AM the order window belongs to the previous day.
+    const isAfterMidnight = currentMinutes < KITCHEN_CLOSE_MINUTES;
+    const serviceDay = isAfterMidnight
+      ? WEEKDAYS[(WEEKDAYS.indexOf(weekday) + 6) % 7]
+      : weekday;
+
+    const isDayOpen = KITCHEN_OPEN_DAYS.includes(serviceDay);
+    const isTimeOpen = isAfterMidnight || currentMinutes >= KITCHEN_OPEN_MINUTES;
 
     const isOpen = isDayOpen && isTimeOpen;
 
     let reason = '';
     if (!isDayOpen) {
-      reason = 'Preva Kitchen is closed on weekends. We accept orders Monday through Friday from 11:00 AM to 3:30 PM.';
+      reason = 'Preva Kitchen is closed on weekends. We accept orders Monday through Friday from 11:00 AM to 1:00 AM.';
     } else if (!isTimeOpen) {
-      if (currentMinutes < KITCHEN_OPEN_MINUTES) {
-        reason = 'Preva Kitchen has not opened yet today. Orders are accepted starting at 11:00 AM.';
-      } else {
-        reason = 'Preva Kitchen is now closed for today. Kitchen hours are 11:00 AM to 3:30 PM.';
-      }
+      reason = 'Preva Kitchen has not opened yet today. Orders are accepted starting at 11:00 AM.';
     }
 
     return {
@@ -67,7 +71,7 @@ export function getKitchenOperatingStatus(date = new Date(), timezone = KITCHEN_
       isDayOpen,
       isTimeOpen,
       reason,
-      hoursDisplay: 'Monday–Friday: 11:00 AM – 3:30 PM'
+      hoursDisplay: 'Monday–Friday: 11:00 AM – 1:00 AM'
     };
   } catch (err) {
     console.error('[operatingHours] Error checking status:', err);
@@ -80,7 +84,7 @@ export function getKitchenOperatingStatus(date = new Date(), timezone = KITCHEN_
       isDayOpen: true,
       isTimeOpen: true,
       reason: '',
-      hoursDisplay: 'Monday–Friday: 11:00 AM – 3:30 PM'
+      hoursDisplay: 'Monday–Friday: 11:00 AM – 1:00 AM'
     };
   }
 }

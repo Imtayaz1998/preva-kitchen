@@ -18,7 +18,7 @@ const ORIGINAL_HEADER_SETTINGS = {
   siteLogo: '/asset/preva-logo.png',
   phone: '(313) 286-3586',
   announcementText: 'Preva Kitchen — Fresh flavor, made in Redford',
-  announcementSecondary: 'Dine In • Pickup • Delivery • Catering',
+  announcementSecondary: 'Delivery • Catering',
   headerCtaText: 'Order Online',
   headerCtaUrl: '#preva-order'
 };
