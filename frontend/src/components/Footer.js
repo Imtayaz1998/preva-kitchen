@@ -495,7 +495,8 @@ export default function Footer() {
               <h4 className="footer-heading">NAVIGATION</h4>
               <div className="footer-heading-divider"></div>
               <ul className="footer-links">
-                {menuItems.filter((item) => item.visible !== false).map((item, idx) => (
+                {/* TEMPORARY: reservation link hidden for now (still in menu data). */}
+                {menuItems.filter((item) => item.visible !== false && !/reserv/i.test(`${item.title || ''} ${item.url || ''}`)).map((item, idx) => (
                   <li key={idx}>
                     <a href={item.url} target={item.openInNewTab ? '_blank' : undefined} rel={item.openInNewTab ? 'noopener noreferrer' : undefined}>{item.title}</a>
                   </li>
@@ -654,7 +655,8 @@ export default function Footer() {
       {/* Mobile kitchen actions */}
       {!isLandingPage && !isShopOrOrderPage && (
         <div className="mobile-sticky-cta">
-          <a href="/reservations" className="sticky-btn">RESERVE TABLE</a>
+          {/* TEMPORARY: reservations hidden for now. Original:
+          <a href="/reservations" className="sticky-btn">RESERVE TABLE</a> */}
           {/* TEMPORARY (until in-house online ordering is live): open Order Online popup. Original:
           <a href="/menu" className="sticky-btn">ORDER ONLINE</a> */}
           <a

@@ -243,7 +243,7 @@ export default function OrderOnlineModal({ open, onClose }) {
         <div className="po-header">
           <div className="po-heading-copy">
             <h2 className="po-title" id="poTitle">ORDER ONLINE NOW</h2>
-            <p className="po-subtitle">Pickup &amp; Delivery: Mon–Fri, 11:00 AM – 3:30 PM</p>
+            <p className="po-subtitle">Pickup &amp; Delivery: Mon–Fri, 11:00 AM – 1:00 AM</p>
           </div>
           <div className="po-mode-toggle" role="tablist" aria-label="Order type">
             <button
