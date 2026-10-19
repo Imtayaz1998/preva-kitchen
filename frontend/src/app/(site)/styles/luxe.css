@@ -1041,7 +1041,14 @@ button[type="submit"].btn,
   font-size: .86rem;
 }
 
+.footer-info-list li > .footer-col {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
 .footer-follow .footer-heading-divider {
+  display: block;
+  width: 100%;
   margin-bottom: 1rem;
 }
 

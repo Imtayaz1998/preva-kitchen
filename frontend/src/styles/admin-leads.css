@@ -2,6 +2,11 @@
 @keyframes admin-spin { to { transform: rotate(360deg); } }
 .spin { animation: admin-spin .9s linear infinite; }
 
+/* Brighter secondary text on the Leads page — the default greys are hard to read on the dark background. */
+/* Covers both the Leads page and the Lead Dashboard (header, stat cards, flow, tables, drawer). */
+.main:has(.leads-stats, .mk-stats) { --ink-muted: #d4c8b4; --ink-dim: #b8ab98; }
+.main:has(.leads-stats, .mk-stats) .page-header p { font-size: 14px; }
+
 .leads-error { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .leads-error button { color: inherit; background: none; border: 0; cursor: pointer; }
 
@@ -24,7 +29,6 @@
 .leads-table { min-width: 960px; margin: 0; }
 .leads-table tbody tr { cursor: pointer; transition: background .12s; }
 .leads-table tbody tr:hover { background: var(--bg-surface-2); }
-.leads-table tbody tr.is-new td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 .leads-table tbody tr.is-new strong { color: var(--gold-light); }
 .leads-table td { vertical-align: middle; }
 

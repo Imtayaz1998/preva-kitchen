@@ -224,9 +224,9 @@ export default function ContactContent() {
 
               {/* Meta info */}
               <div style={{ display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap', color: '#999', fontSize: '0.86rem' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Clock size={16} color="#c5a059" /> Dine-In Tue–Sun 5–10pm · Pickup Mon–Fri 11–3:30pm
-                </span>
+                </span> */}
                 <a
                   href="https://www.google.com/maps/search/?api=1&query=Preva+Kitchen,+13090+Inkster+Rd,+Redford+Township,+MI+48239,+United+States"
                   target="_blank"
@@ -437,12 +437,12 @@ export default function ContactContent() {
                   </div>
                   <div>
                     <span style={{ display: 'block', color: '#c5a059', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '4px' }}>
-                      SERVICE HOURS
+                      DELIVERY HOURS
                     </span>
                     <p style={{ margin: 0, color: '#d5d0c8', fontSize: '0.94rem', lineHeight: 1.6 }}>
-                      Dine-In: Tuesday – Sunday, <strong>5:00 PM – 10:00 PM</strong><br />
-                      Pickup &amp; Delivery: Monday – Friday, <strong>11:00 AM – 3:30 PM</strong><br />
-                      <small style={{ color: '#888' }}>Monday: No dine-in service (pickup/delivery only)</small>
+                      Monday - Friday: <strong>11:00 AM – 1:00 AM</strong><br />
+                      Saturday evening & Sunday: <strong>Delivery not currently scheduled</strong><br />
+                      <small style={{ color: '#888' }}>Friday orders close at 1:00 AM, Saturday. Pickup availability is subject to confirmation.</small>
                     </p>
                   </div>
                 </div>

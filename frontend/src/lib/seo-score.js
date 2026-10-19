@@ -21,6 +21,9 @@ const stripTags = (html) => String(html || '')
   .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
   .replace(/<[^>]+>/g, ' ')
   .replace(/&nbsp;/g, ' ')
+  // Decode the entities a keyword can contain ("steak & cheese", "chef's") so phrase matching still works.
+  .replace(/&amp;/gi, '&')
+  .replace(/&(#39|#x27|apos|rsquo|lsquo);/gi, "'")
   .replace(/&[a-z]+;/gi, ' ')
   .replace(/\s+/g, ' ')
   .trim();

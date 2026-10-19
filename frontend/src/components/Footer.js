@@ -505,31 +505,42 @@ export default function Footer() {
 
             {/* Hours Column */}
             <div className="footer-col hours-col">
-              <h4 className="footer-heading">HOURS</h4>
+              <h4 className="footer-heading">DELIVERY HOURS</h4>
               <div className="footer-heading-divider"></div>
               <ul className="footer-info-list">
                 <li>
                   <span className="icon-gold"><SvgIcon name="clock" size={16} /></span>
                   <div>
-                    <strong>Dine-In (Tue-Sun):</strong><br />
-                    5:00 pm - 10:00 pm
+                    <strong>Monday–Friday:</strong><br />
+                    11:00 am - 1:00 am
                   </div>
                 </li>
                 <li>
                   <span className="icon-gold"><SvgIcon name="clock" size={16} /></span>
                   <div>
-                    <strong>Pickup &amp; Delivery (Mon-Fri):</strong><br />
-                    11:00 am - 3:30 pm
-                  </div>
+                  <strong>Saturday evening & Sunday:</strong><br />
+                    Delivery not currently scheduled
+                  </div> 
+                </li>
+                
+                
+            {/* <li>
+                  {/* <span className="icon-gold"><SvgIcon name="clock" size={16} /></span>
+                  <div>
+                    {/* <strong>Saturday:</strong><br /> 
+                    {/* Friday orders close at 1:00 AM, Saturday.Pickup availability is subject to confirmation.
+                  </div> *
                 </li>
                 <li>
-                  <span className="icon-gold"><SvgIcon name="parking" size={16} /></span>
-                  <div>
-                    <strong>Parking:</strong><br />
-                    Easy parking available
-                  </div>
-                </li>
+                  {/* <span className="icon-gold"><SvgIcon name="clock" size={16} /></span> 
+                   <div>
+                    <strong>Sunday:</strong><br />
+                    Closed
+                  </div> 
+                </li> */}
               </ul>
+               <div className="footer-col hours-col">
+              
 
               <div className="footer-follow">
                 <h4 className="footer-heading">FOLLOW US</h4>
@@ -556,6 +567,8 @@ export default function Footer() {
                 </div>
               </div>
             </div>
+            </div>
+            
 
             {/* Contact & Map Column */}
             <div className="footer-col contact-col">
@@ -565,7 +578,7 @@ export default function Footer() {
                 className="footer-map-wrapper"
                 style={{
                   width: '100%',
-                  height: '200px',
+                  height: '220px',
                   borderRadius: '10px',
                   overflow: 'hidden',
                   border: '1px solid rgba(213, 164, 79, 0.35)',
@@ -597,6 +610,31 @@ export default function Footer() {
                   <span>{settings.address}</span>
                   <strong style={{ color: '#c5a059', letterSpacing: '0.08em', textTransform: 'uppercase', fontSize: '0.8rem' }}>Get Directions →</strong>
                 </a>
+              </div>
+
+              <div className="footer-follow">
+                {/* <h4 className="footer-heading">FOLLOW US</h4>
+                <div className="footer-heading-divider"></div>
+                <div className="footer-social-grid">
+                  <a
+                    href={settings.socialLinks?.instagram || 'https://www.instagram.com/prevakitchen/'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="footer-social-link"
+                  >
+                    <span className="icon-gold"><SvgIcon name="instagram" size={16} /></span>
+                    <span><strong>Instagram:</strong><small>@prevakitchen</small></span>
+                  </a>
+                  <a
+                    href={settings.socialLinks?.facebook || 'https://www.facebook.com/people/Preva-Kitchen/61586402862277/'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="footer-social-link"
+                  >
+                    <span className="icon-gold"><SvgIcon name="facebook" size={16} /></span>
+                    <span><strong>Facebook:</strong><small>@prevakitchen</small></span>
+                  </a>
+                </div> */}
               </div>
             </div>
           </div>

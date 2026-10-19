@@ -177,7 +177,7 @@ export default function ReservationsContent() {
           <SecondaryButton href="tel:+13132863586" icon={Phone}>Call (313) 286-3586</SecondaryButton>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', color: COLORS.textMuted, fontSize: '0.84rem' }}>
-          {[[Clock, 'Dine-In: Tue–Sun · 5pm–10pm'], [MapPin, '13090 Inkster Rd, Redford Township, MI 48239']].map(([Icon, text]) => (
+          {[[Clock, 'Delivery Hours: Mon-Fri · 11:00 AM–1:00 AM'], [MapPin, '13090 Inkster Rd, Redford Township, MI 48239']].map(([Icon, text]) => (
             <span key={text} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: '999px', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(197, 160, 89, 0.22)' }}>
               <Icon size={15} color={COLORS.gold} /> {text}
             </span>
@@ -228,9 +228,9 @@ export default function ReservationsContent() {
                 <strong style={{ color: '#fff' }}>Preva Kitchen</strong><br />
                 13090 Inkster Rd, Redford Township, MI 48239
               </InfoRow>
-              <InfoRow icon={Clock} label="Hours">
-                Dine-In: Tuesday – Sunday, 5:00 PM – 10:00 PM<br />
-                <span style={{ color: COLORS.textFaint, fontSize: '0.84rem' }}>Monday: Closed for dine-in. Pickup &amp; delivery Monday – Friday, 11:00 AM – 3:30 PM.</span>
+              <InfoRow icon={Clock} label="Delivery Hours">
+                Delivery: Monday – Friday, 11:00 AM – 1:00 AM<br />
+                <span style={{ color: COLORS.textFaint, fontSize: '0.84rem' }}>Friday orders close at 1:00 AM, Saturday. Pickup availability is subject to confirmation.</span>
               </InfoRow>
               <InfoRow icon={Phone} label="Call us">
                 <a href="tel:+13132863586" style={{ color: '#fff', textDecoration: 'none', fontWeight: 700 }}>(313) 286-3586</a>
