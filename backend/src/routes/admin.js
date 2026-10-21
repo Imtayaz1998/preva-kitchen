@@ -2,7 +2,7 @@ import slugify from 'slugify';
 import { col, serialize, asObjectId } from '../lib/db.js';
 import {
   cleanText, cleanEmail, cleanBool, cleanInt, cleanOrderUrl,
-  normalizeOrderAvailability, publicHtml, parseMoney
+  normalizeOrderAvailability, publicHtml, pageHtml, cleanCss, parseMoney
 } from '../lib/sanitize.js';
 import { hashPassword } from '../lib/auth.js';
 import { logActivity } from '../lib/activity.js';
@@ -148,13 +148,28 @@ function contentPayload(body, user) {
     throw badRequest('Choose a valid date and time before scheduling this content.');
   }
 
+  const type = String(body?.type).toUpperCase() === 'PAGE' ? 'PAGE' : 'POST';
+  const rawBody = body?.body ?? body?.content;
+  const isCodePage = type === 'PAGE' && cleanText(body?.pageTemplate, 80) === 'landing';
+
   return {
     title,
     slug: slug(body?.slug || title),
-    type: String(body?.type).toUpperCase() === 'PAGE' ? 'PAGE' : 'POST',
+    type,
     status,
     excerpt: cleanText(body?.excerpt, 500),
-    body: publicHtml(body?.body ?? body?.content),
+    // Pages get a wider allowlist (<style>, full inline styles, layout tags)
+    // so designs pasted in the editor keep their CSS; scripts and event
+    // handlers are still stripped. Posts keep the stricter blog allowlist.
+    body: type === 'PAGE' ? pageHtml(rawBody) : publicHtml(rawBody),
+    customCss: type === 'PAGE' ? cleanCss(body?.customCss) : '',
+    // Custom-code pages (Landing template): the exact HTML and JS as written.
+    // The public site only ever runs these inside a sandboxed iframe with no
+    // same-origin access (CodeFrame.js), so they can't reach site cookies or
+    // the admin session; `body` above keeps a sanitised copy for search/excerpts.
+    customHtml: isCodePage ? String(rawBody ?? '').slice(0, 2_000_000) : null,
+    customJs: isCodePage ? String(body?.customJs ?? '').slice(0, 500_000) : '',
+    matchSiteStyle: cleanBool(body?.matchSiteStyle, true),
     sections: (Array.isArray(body?.sections) ? body.sections : []).slice(0, 80),
     featuredImage: cleanText(body?.featuredImage, 2000),
     featuredImageAlt: cleanText(body?.featuredImageAlt, 300),

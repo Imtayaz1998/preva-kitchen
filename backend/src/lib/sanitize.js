@@ -79,6 +79,80 @@ export const publicHtml = (value) =>
     }
   });
 
+/**
+ * Website pages are built by admins/editors pasting designed HTML, so they get
+ * a wider allowlist than blog posts: <style> blocks, any inline CSS, layout
+ * and SVG tags, data-/aria- attributes. Scripts, event handlers (on*) and
+ * javascript: URLs are still removed — sanitize-html drops anything not
+ * listed here.
+ */
+export const pageHtml = (value) =>
+  sanitizeHtml(String(value ?? '').slice(0, 2_000_000), {
+    allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+      'img', 'h1', 'h2', 'table', 'caption', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+      'video', 'audio', 'source', 'picture', 'iframe', 'figure', 'figcaption',
+      'details', 'summary', 'style', 'link', 'button', 'label',
+      'form', 'input', 'select', 'option', 'optgroup', 'textarea', 'fieldset', 'legend',
+      'svg', 'g', 'path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon',
+      'defs', 'lineargradient', 'radialgradient', 'stop', 'text', 'tspan'
+    ]),
+    allowVulnerableTags: true, // only for <style>; <script> is not in the list
+    // A whole pasted HTML file: drop <title>/<noscript> text instead of
+    // leaving it as a stray line at the top of the page.
+    nonTextTags: ['script', 'style', 'textarea', 'option', 'noscript', 'title'],
+    exclusiveFilter: (frame) => frame.tag === 'link' && !/^stylesheet$/i.test(frame.attribs.rel || ''),
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      '*': ['class', 'id', 'style', 'title', 'role', 'data-*', 'aria-*', 'lang', 'dir'],
+      a: ['href', 'name', 'target', 'rel'],
+      img: ['src', 'srcset', 'sizes', 'alt', 'title', 'width', 'height', 'loading', 'decoding'],
+      source: ['src', 'srcset', 'type', 'media', 'sizes'],
+      video: ['src', 'controls', 'poster', 'width', 'height', 'autoplay', 'muted', 'loop', 'playsinline'],
+      audio: ['src', 'controls', 'loop'],
+      iframe: ['src', 'title', 'width', 'height', 'allow', 'allowfullscreen', 'loading', 'referrerpolicy'],
+      td: ['colspan', 'rowspan'],
+      th: ['colspan', 'rowspan', 'scope'],
+      details: ['open', 'name'],
+      button: ['type'],
+      // Only stylesheets (e.g. Google Fonts); other <link> rels are dropped below.
+      link: ['rel', 'href'],
+      // Forms keep their look but not an action — they can't post anywhere.
+      form: ['method', 'novalidate'],
+      input: ['type', 'name', 'placeholder', 'value', 'required', 'min', 'max', 'step', 'checked', 'disabled', 'autocomplete', 'maxlength', 'pattern'],
+      select: ['name', 'required', 'multiple', 'disabled'],
+      option: ['value', 'selected', 'disabled'],
+      textarea: ['name', 'rows', 'cols', 'placeholder', 'required', 'maxlength'],
+      label: ['for'],
+      svg: ['viewbox', 'width', 'height', 'fill', 'stroke', 'stroke-width', 'xmlns', 'preserveaspectratio'],
+      path: ['d', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'fill-rule', 'clip-rule', 'transform'],
+      circle: ['cx', 'cy', 'r', 'fill', 'stroke', 'stroke-width'],
+      ellipse: ['cx', 'cy', 'rx', 'ry', 'fill', 'stroke'],
+      rect: ['x', 'y', 'width', 'height', 'rx', 'ry', 'fill', 'stroke'],
+      line: ['x1', 'y1', 'x2', 'y2', 'stroke', 'stroke-width'],
+      polyline: ['points', 'fill', 'stroke', 'stroke-width'],
+      polygon: ['points', 'fill', 'stroke', 'stroke-width'],
+      g: ['fill', 'stroke', 'transform'],
+      lineargradient: ['x1', 'y1', 'x2', 'y2', 'gradientunits'],
+      radialgradient: ['cx', 'cy', 'r', 'fx', 'fy', 'gradientunits'],
+      stop: ['offset', 'stop-color', 'stop-opacity'],
+      text: ['x', 'y', 'fill', 'font-size', 'text-anchor'],
+      tspan: ['x', 'y', 'dx', 'dy']
+    },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'www.youtube-nocookie.com', 'player.vimeo.com', 'www.google.com', 'maps.google.com'],
+    transformTags: {
+      a: (tagName, attribs) => ({
+        tagName,
+        attribs: { ...attribs, ...(attribs.target === '_blank' ? { rel: 'noopener noreferrer' } : {}) }
+      })
+    }
+  });
+
+/** Page-level custom CSS, injected inside a <style> tag on the public page —
+ *  so it must not be able to close that tag. */
+export const cleanCss = (value) =>
+  String(value ?? '').replace(/<\/?\s*(style|script|template)/gi, '').slice(0, 300_000);
+
 /* ══════════════════════════════════════════════════════════════════════════
    Money
    ─────────────────────────────────────────────────────────────────────────

@@ -33,14 +33,11 @@ function toTelHref(phone) {
 }
 
 function includeOrderNavigation(items) {
-  // Always enforce the user's exact preferred header navigation items
-  return [
-    { title: 'Menu',         url: '/menu',                 openInNewTab: false, visible: true },
-    // { title: 'Reservations', url: '/reservations',         openInNewTab: false, visible: true },
-    { title: 'Blog',         url: '/blog',                 openInNewTab: false, visible: true },
-    { title: 'Careers',      url: '/careers',              openInNewTab: false, visible: true },
-    { title: 'Contact Us',   url: '/contact',              openInNewTab: false, visible: true },
-  ];
+  // The "primary" menu from Admin → Menus drives the header; the original
+  // links are only a fallback when that menu is empty or has nothing visible.
+  const usable = (Array.isArray(items) ? items : []).filter((item) => item && item.visible !== false && (item.title || item.label) && item.url);
+  if (!usable.length) return ORIGINAL_HEADER_MENU;
+  return usable.map((item) => ({ ...item, title: item.title || item.label }));
 }
 
 export default function Header() {

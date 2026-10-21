@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Shell from '@/components/admin/Shell';
 import { LoadingSkeleton, PageHeader } from '@/components/admin/AdminUI';
 import RichTextEditor from '@/components/admin/RichTextEditor';
+import CodeFrame from '@/components/site-page/CodeFrame';
 import { api } from '@/lib/admin-api';
 import { analyzeSeo } from '@/lib/seo-score';
 import { BookOpen, FileText, Eye, ChevronDown, ChevronRight } from 'lucide-react';
@@ -975,6 +976,9 @@ function EditContentForm() {
     parentPageId: '',
     sortOrder: 0,
     pageTemplate: 'default',
+    customCss: '',
+    customJs: '',
+    matchSiteStyle: true,
     categoryIds: [],
     tagIds: [],
     sections: []
@@ -1059,7 +1063,8 @@ function EditContentForm() {
           title: row.title || '',
           slug: row.slug || '',
           excerpt: row.excerpt || '',
-          content: row.content || '',
+          // Custom-code pages edit their exact saved HTML, not the sanitised copy.
+          content: row.pageTemplate === 'landing' && typeof row.customHtml === 'string' ? row.customHtml : (row.content || ''),
           featuredImage: row.featuredImage || '',
           featuredImageAlt: row.featuredImageAlt || '',
           seoTitle: row.seoTitle || '',
@@ -1075,6 +1080,9 @@ function EditContentForm() {
           parentPageId: row.parentPageId || '',
           sortOrder: row.sortOrder || 0,
           pageTemplate: row.pageTemplate || 'default',
+          customCss: row.customCss || '',
+          customJs: row.customJs || '',
+          matchSiteStyle: row.matchSiteStyle !== false,
           categoryIds: uniqueIds([
             ...(row.categoryIds || []),
             ...(row.categories || []).map(c => c.category?.id || c.id || c.categoryId)
@@ -1102,6 +1110,10 @@ function EditContentForm() {
       ...(name === 'title' && !slugManuallyEdited && !id ? { slug: editorSlug(value) } : {})
     }));
   };
+
+  // "Landing Page" template = custom code page (HTML + CSS + JS boxes).
+  const isCodePage = type === 'PAGE' && form.pageTemplate === 'landing';
+  const codeBoxStyle = { fontFamily: 'Consolas, Menlo, monospace', fontSize: '0.85rem', whiteSpace: 'pre', tabSize: 2 };
 
   const handleCheckboxChange = (catId, checked) => {
     setForm(prev => {
@@ -1419,19 +1431,90 @@ function EditContentForm() {
                 </>
               )}
 
+              {type === 'PAGE' && (
+                <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                  <button type="button" className={`btn ${isCodePage ? 'btn-secondary' : 'btn-primary'}`} onClick={() => setForm(prev => ({ ...prev, pageTemplate: prev.pageTemplate === 'landing' ? 'default' : prev.pageTemplate }))}>
+                    Visual editor
+                  </button>
+                  <button type="button" className={`btn ${isCodePage ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setForm(prev => ({ ...prev, pageTemplate: 'landing' }))}>
+                    Custom code (HTML + CSS + JS)
+                  </button>
+                </div>
+              )}
+
+              {isCodePage ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+                  <label>HTML</label>
+                  <textarea className="input" name="content" rows="16" spellCheck="false" value={form.content} onChange={handleChange} style={codeBoxStyle}
+                    placeholder={'<section class="hero">\n  <h1>Your heading</h1>\n</section>\n\n(Full HTML files with <head>, <link> and <style> also work.)'} />
+                  <label>CSS</label>
+                  <textarea className="input" name="customCss" rows="12" spellCheck="false" value={form.customCss} onChange={handleChange} style={codeBoxStyle}
+                    placeholder={'.hero { background: #0c0a09; padding: 80px 20px; }'} />
+                  <label>JavaScript</label>
+                  <textarea className="input" name="customJs" rows="8" spellCheck="false" value={form.customJs} onChange={handleChange} style={codeBoxStyle}
+                    placeholder={"document.querySelector('.hero h1').addEventListener('click', () => {});"} />
+                  <p className="rich-editor-note">
+                    The page runs exactly like a standalone HTML file — the site&apos;s own CSS doesn&apos;t touch it; the site header and footer stay around it.
+                    Images: upload them in Media and use their URL (e.g. /api/media/…) — paths like media/photo.webp from your computer won&apos;t load.
+                  </p>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input type="checkbox" name="matchSiteStyle" checked={form.matchSiteStyle} onChange={handleChange} />
+                    Match website fonts &amp; width (Roboto, site heading/paragraph sizes, content aligned with the header)
+                  </label>
+                  <label>Live preview (updates as you type — no save needed)</label>
+                  <div style={{ border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', overflow: 'hidden', maxHeight: '80vh', overflowY: 'auto', background: '#fff' }}>
+                    <CodeFrame html={form.content} css={form.customCss} js={form.customJs} matchSite={form.matchSiteStyle} title="Live preview" minHeight={300} />
+                  </div>
+                </div>
+              ) : (
+              <>
               <div style={{ marginTop: '10px' }}>
                 <label style={{ display: 'block', marginBottom: '8px' }}>Content Editor</label>
                 <RichTextEditor
                   ref={richEditorRef}
                   value={form.content}
                   required
-                  onChange={(content) => setForm(prev => ({ ...prev, content }))}
+                  onChange={(content) => setForm(prev => {
+                    if (type !== 'PAGE') return { ...prev, content };
+                    // A whole designed HTML file was pasted: run it as custom code (exactly as written)
+                    // rather than inside the banner/column layout.
+                    if (/<(!doctype|html|head|style|script)\b/i.test(content)) return { ...prev, content, pageTemplate: 'landing' };
+                    // Code pasted into the visual canvas arrives as escaped text (&lt;html&gt;…):
+                    // turn it back into real code.
+                    if (/&lt;(!doctype|html|head|style|script)\b/i.test(content)) {
+                      const decoder = document.createElement('textarea');
+                      decoder.innerHTML = content.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div)>/gi, '\n').replace(/<[^>]+>/g, '');
+                      return { ...prev, content: decoder.value.trim(), pageTemplate: 'landing' };
+                    }
+                    return { ...prev, content };
+                  })}
                   onOpenMedia={() => openMediaSelector('content')}
                 />
                 <p className="rich-editor-note">
                   Tip: select text and click the quote or link button. Quotes use the same premium gold style on the public blog.
                 </p>
               </div>
+
+              {type === 'PAGE' && (
+                <div style={{ marginTop: '10px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px' }}>Custom CSS (this page only)</label>
+                  <textarea
+                    className="input"
+                    name="customCss"
+                    rows="10"
+                    spellCheck="false"
+                    value={form.customCss}
+                    onChange={handleChange}
+                    placeholder={'.my-hero { background: #0c0a09; padding: 80px 20px; }\n.my-hero h1 { color: #c5a059; }'}
+                    style={{ fontFamily: 'Consolas, Menlo, monospace', fontSize: '0.85rem' }}
+                  />
+                  <p className="rich-editor-note">
+                    Write plain CSS (no &lt;style&gt; tag needed). &lt;style&gt; blocks and inline style="" pasted in the HTML view also work. For your own full design with JavaScript, use &quot;Custom code&quot; above.
+                  </p>
+                </div>
+              )}
+              </>
+              )}
             </div>
 
             {/* ── Elementor-style Visual Section Builder Panel ── */}
@@ -2218,9 +2301,9 @@ function EditContentForm() {
 
                 <label>Page Template</label>
                 <select className="input" name="pageTemplate" value={form.pageTemplate} onChange={handleChange}>
-                  <option value="default">Default Template</option>
-                  <option value="fullwidth">Full Width Template</option>
-                  <option value="landing">Landing Page Template</option>
+                  <option value="default">Default (title banner + content column)</option>
+                  <option value="fullwidth">Full Width (title banner + your design edge-to-edge)</option>
+                  <option value="landing">Custom Code (your HTML + CSS + JS, exactly as written)</option>
                 </select>
 
                 <label>Sort Order</label>

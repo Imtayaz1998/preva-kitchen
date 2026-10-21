@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { cmsFetch } from '@/lib/cms';
 import PageBuilder from '@/components/PageBuilder';
+import CmsPageView from '@/components/site-page/CmsPageView';
 import SvgIcon from '@/components/SvgIcon';
 import { rewriteLegacyBlogLinks } from '@/lib/blog-links';
 import { dropEmptyFaqItems } from '@/lib/blog-faq';
@@ -197,39 +198,7 @@ export default async function PreviewPage({ searchParams }) {
           </div>
         ) : (
           /* Any other CMS Dynamic Page (Current or Future) */
-          <main id="primary" className="site-main single-post-luxury dynamic-page-custom">
-            <section className="blog-hero" style={{ position: 'relative' }}>
-              {content.featuredImage ? (
-                <img src={content.featuredImage} className="blog-hero-image" alt={content.featuredImageAlt || content.title || ''} />
-              ) : null}
-              <div className="overlay" style={{ background: 'rgba(0,0,0,0.6)', position: 'absolute', inset: 0 }}></div>
-              
-              <div className="container relative-z2" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
-                <div className="blog-breadcrumbs">
-                  <Link href="/">HOME</Link>
-                  <span className="sep">/</span>
-                  <span>{(content.title || '').toUpperCase()}</span>
-                </div>
-                <h1 className="blog-title-large" style={{ color: '#fff', fontSize: '3rem', margin: '20px 0', fontWeight: 'bold' }}>
-                  {content.title}
-                </h1>
-              </div>
-            </section>
-
-            {hasSections ? (
-              <PageBuilder sections={content.sections} fallbackContent={content.content} />
-            ) : (
-              <div className="container blog-content-layout no-sidebar" style={{ paddingBlock: '60px' }}>
-                <div className="blog-main-content" style={{ maxWidth: '900px', margin: '0 auto' }}>
-                  <div 
-                    className="post-main-content" 
-                    style={{ color: '#ccc', fontSize: '1.08rem', lineHeight: '1.85' }} 
-                    dangerouslySetInnerHTML={{ __html: rewriteLegacyBlogLinks(dropEmptyFaqItems(content.content || '<p>No content written yet.</p>')) }} 
-                  />
-                </div>
-              </div>
-            )}
-          </main>
+          <CmsPageView page={content} />
         )
       ) : (
         /* ── CASE 2: BLOG POST TEMPLATE (matching /blog/[slug]) ── */
