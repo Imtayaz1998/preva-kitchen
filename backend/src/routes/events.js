@@ -2,6 +2,7 @@ import { col } from '../lib/db.js';
 import { cleanText, cleanEmail, cleanBool } from '../lib/sanitize.js';
 import { post, badRequest } from '../router.js';
 import { logActivity } from '../lib/activity.js';
+import { emailProblem } from '../lib/emailCheck.js';
 import { buildReferenceId, notifyEventInquiry, notifyEventInquiryCustomer } from '../lib/email.js';
 import {
   isHoneypotTripped, enforceRateLimit, getIdempotentResponse, rememberIdempotentResponse
@@ -22,7 +23,60 @@ const LANDING_PAGES = {
   'corporate-events': { useCase: 'corporate_event', eventType: 'Corporate Event / Holiday Party' },
   'birthday-parties': { useCase: 'birthday_party', eventType: 'Birthday Party' },
   'baby-showers': { useCase: 'baby_shower', eventType: 'Baby / Bridal Shower' },
-  weddings: { useCase: 'wedding', eventType: 'Wedding Reception' }
+  weddings: { useCase: 'wedding', eventType: 'Wedding Reception' },
+  // Admin-built (custom code) page, copied from prevaclub.com/anniversary-parties
+  'anniversary-parties': { useCase: 'anniversary_party', eventType: 'Anniversary Party' },
+  // Admin-built (custom code) page, copied from prevaclub.com/car-shows-and-bike-nights
+  'car-shows-and-bike-nights': { useCase: 'car_show', eventType: 'Car Show / Bike Night' },
+  // Admin-built (custom code) page, copied from prevaclub.com/comedy-shows
+  'comedy-shows': { useCase: 'comedy_show', eventType: 'Comedy Show' },
+  // Admin-built (custom code) page, copied from prevaclub.com/community-rentals
+  'community-rentals': { useCase: 'community_rental', eventType: 'Community Rental' },
+  // Admin-built (custom code) page, copied from prevaclub.com/concert-venue
+  'concert-venue': { useCase: 'concert', eventType: 'Concert / Live Music' },
+  // Admin-built (custom code) page, copied from prevaclub.com/corporate-accounts
+  'corporate-accounts': { useCase: 'corporate_account', eventType: 'Corporate Account' },
+  // Admin-built (custom code) page, copied from prevaclub.com/corporate-catering
+  'corporate-catering': { useCase: 'corporate_catering', eventType: 'Corporate Catering' },
+  // Admin-built (custom code) pages, copied from the matching prevaclub.com URLs (Oct 21 2026)
+  'engagement-parties': { useCase: 'engagement_party', eventType: 'Engagement Party' },
+  'quinceaneras-sweet-16': { useCase: 'quinceanera_sweet16', eventType: 'Quinceañera / Sweet 16' },
+  'graduation-parties': { useCase: 'graduation_party', eventType: 'Graduation Party' },
+  'repast-venue': { useCase: 'repast', eventType: 'Repast' },
+  'cultural-weddings': { useCase: 'cultural_wedding', eventType: 'Cultural Wedding' },
+  'prom-venue-in-redford-mi': { useCase: 'prom', eventType: 'Prom' },
+  'meeting-space-in-redford': { useCase: 'meeting_space', eventType: 'Meeting / Workshop / Presentation' },
+  'networking-events': { useCase: 'networking', eventType: 'Networking Event' },
+  'team-building-events': { useCase: 'team_building', eventType: 'Team Building' },
+  'brand-activation-events': { useCase: 'brand_activation', eventType: 'Brand Activation' },
+  'vendor-events': { useCase: 'vendor_event', eventType: 'Vendor Market' },
+  'fundraiser-venue': { useCase: 'fundraiser', eventType: 'Fundraiser / Gala' },
+  'holiday-events': { useCase: 'holiday_event', eventType: 'Holiday Event' },
+  'fashion-show-venue': { useCase: 'fashion_show', eventType: 'Fashion Show' },
+  'listening-party-venue': { useCase: 'listening_party', eventType: 'Listening Party' },
+  'podcast-content-days': { useCase: 'podcast', eventType: 'Podcast / Content Day' },
+  'immersive-events': { useCase: 'immersive', eventType: 'Immersive Production' },
+  'screening-venue': { useCase: 'screening', eventType: 'Film Screening' },
+  'shoot-location-rental': { useCase: 'shoot_location', eventType: 'Shoot Location' },
+  'day-party-venue': { useCase: 'day_party', eventType: 'Day Party' },
+  'lot-events': { useCase: 'lot_event', eventType: 'Lot Event' },
+  'sports-bar-redford': { useCase: 'sports_bar', eventType: 'Sports Bar Group' },
+  'sunday-funday': { useCase: 'sunday_funday', eventType: 'Sunday Booking' },
+  'group-outings': { useCase: 'group_outing', eventType: 'Group Outing' },
+  'delivery': { useCase: 'delivery', eventType: 'Delivery Order' },
+  'lunch-redford': { useCase: 'lunch', eventType: 'Lunch Group' },
+  'happy-hour': { useCase: 'happy_hour', eventType: 'Happy Hour Group' },
+  'catering': { useCase: 'catering', eventType: 'Catering' },
+  'event-menus': { useCase: 'event_menu', eventType: 'Event Menu Request' },
+  'bulk-orders': { useCase: 'bulk_order', eventType: 'Bulk Order' },
+  'kitchen-partnerships': { useCase: 'kitchen_partnership', eventType: 'Kitchen Partnership' },
+  'rewards': { useCase: 'rewards', eventType: 'Rewards Inquiry' },
+  'referrals': { useCase: 'referral', eventType: 'Referral' },
+  'preferred-vendors': { useCase: 'preferred_vendor', eventType: 'Vendor Inquiry' },
+  'book-an-event-again': { useCase: 'rebooking', eventType: 'Rebooking' },
+  'outdoor-events': { useCase: 'outdoor_event', eventType: 'Outdoor Event' },
+  'plan-an-event': { useCase: 'event_inquiry', eventType: 'Event Inquiry' },
+  kitchen: { useCase: 'kitchen', eventType: 'Preva Kitchen Inquiry' }
 };
 
 /** Whitelisted page-specific select values. Anything else is stored as ''. */
@@ -97,6 +151,9 @@ post('/event-inquiries', async ({ body, ip, request }) => {
     throw badRequest('Name, phone, email and preferred date are required.');
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw badRequest('Enter a valid email address.');
+  // Real addresses only: the domain must accept mail, no throwaway inboxes.
+  const emailIssue = await emailProblem(email);
+  if (emailIssue) throw badRequest(emailIssue);
 
   const parsedDate = new Date(`${preferredDate}T00:00:00.000Z`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(preferredDate) || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== preferredDate) {

@@ -9,6 +9,11 @@ import { api } from '@/lib/admin-api';
 import { getSeoScore } from '@/lib/seo-score';
 import { BookOpen, Copy, Edit, Eye, FilePlus2, FileText, Plus, SlidersHorizontal, Trash2, X, Check, Save } from 'lucide-react';
 
+/** Category ids of a row, whichever shape the API used ({category:{id}} or {id} or a bare id). */
+function rowCategoryIds(row) {
+  return [...(row.categories || []).map((c) => String(c?.category?.id || c?.id || c)), ...(row.categoryIds || []).map(String)];
+}
+
 function ContentList() {
   const confirmAction = useConfirm();
   const q = useSearchParams();
@@ -20,9 +25,11 @@ function ContentList() {
   const [error, setError] = useState('');
   
   // Filters & Search
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  // Filters live in the URL (?q=&status=&category=) so they survive opening
+  // an item and coming back, like WordPress's list screens.
+  const [search, setSearch] = useState(q.get('q') || '');
+  const [statusFilter, setStatusFilter] = useState(q.get('status') || '');
+  const [categoryFilter, setCategoryFilter] = useState(q.get('category') || '');
   const [selectedIds, setSelectedIds] = useState([]);
   
   // Pagination
@@ -77,6 +84,18 @@ function ContentList() {
     setCurrentPage(1);
     setQuickEditId(null);
   }, [type]);
+
+  // A new filter starts from page 1 (otherwise page 3 of a 1-page result is
+  // empty) and is written to the URL without adding history entries.
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedIds([]);
+    const params = new URLSearchParams({ type });
+    if (search.trim()) params.set('q', search.trim());
+    if (statusFilter) params.set('status', statusFilter);
+    if (categoryFilter) params.set('category', categoryFilter);
+    window.history.replaceState(null, '', `${window.location.pathname}?${params}`);
+  }, [search, statusFilter, categoryFilter, type]);
 
   const deleteItem = async (item) => {
     const permanent = item.status === 'TRASH';
@@ -237,6 +256,11 @@ function ContentList() {
   };
 
   const handlePreview = async (item) => {
+    // Code pages have their own route and are always live — open them directly.
+    if (item.pageTemplate === 'code') {
+      window.open(`${window.location.origin}/${item.slug}`, '_blank', 'noopener,noreferrer');
+      return;
+    }
     try {
       const tokenRes = await api(`/admin/content/${item.id}/preview-token`, { method: 'POST' });
       if (tokenRes.ok) {
@@ -272,21 +296,32 @@ function ContentList() {
   };
 
   // Apply filters
+  // Every word must appear somewhere (any order) in the title, slug, excerpt,
+  // focus keyword, author, categories or tags — "rasta pasta" also finds
+  // "Pasta, Rasta-style" and posts only tagged Rasta Pasta.
+  const words = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const haystack = (r) => [
+    r.title, r.slug, r.excerpt, r.focusKeyword, r.seoTitle, r.author?.name,
+    ...(r.categories || []).map((c) => c.category?.name || c.name),
+    ...(r.tags || []).map((t) => t.tag?.name || t.name)
+  ].filter(Boolean).join(' ').toLowerCase().replace(/-/g, ' ');
   const filteredRows = rows.filter((r) => {
-    const matchesSearch = !search || 
-      (r.title && r.title.toLowerCase().includes(search.toLowerCase())) ||
-      (r.slug && r.slug.toLowerCase().includes(search.toLowerCase()));
-      
-    const matchesStatus = !statusFilter || r.status === statusFilter;
+    const text = words.length ? haystack(r) : '';
+    const matchesSearch = !words.length || words.every((w) => text.includes(w));
+
+    // "All" hides trashed items; they only show under the Trash filter.
+    const matchesStatus = statusFilter ? r.status === statusFilter : r.status !== 'TRASH';
     
-    const matchesCategory = !categoryFilter || 
-      (r.categories && r.categories.some(c => c.category?.id === categoryFilter || c.id === categoryFilter));
+    const matchesCategory = !categoryFilter || rowCategoryIds(r).includes(categoryFilter);
 
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredRows.length / itemsPerPage);
+  // Deleting the last items of the last page must not leave an empty page.
+  if (totalPages > 0 && currentPage > totalPages) setCurrentPage(totalPages);
+  const statusCount = (status) => rows.filter((r) => (status ? r.status === status : r.status !== 'TRASH')).length;
   const currentItems = filteredRows.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
@@ -321,12 +356,11 @@ function ContentList() {
           className="select"
           style={{ width: '160px', margin: 0 }}
         >
-          <option value="">All Statuses</option>
-          <option value="PUBLISHED">Published</option>
-          <option value="DRAFT">Draft</option>
-          <option value="SCHEDULED">Scheduled</option>
-          <option value="ARCHIVED">Archived</option>
-          <option value="TRASH">Trash</option>
+          <option value="">All ({statusCount('')})</option>
+          <option value="PUBLISHED">Published ({statusCount('PUBLISHED')})</option>
+          <option value="DRAFT">Draft ({statusCount('DRAFT')})</option>
+          <option value="SCHEDULED">Scheduled ({statusCount('SCHEDULED')})</option>
+          <option value="TRASH">Trash ({statusCount('TRASH')})</option>
         </select>
 
         {type === 'POST' && (
@@ -338,10 +372,17 @@ function ContentList() {
           >
             <option value="">All Categories</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>{c.name} ({rows.filter((r) => r.status !== 'TRASH' && rowCategoryIds(r).includes(c.id)).length})</option>
             ))}
           </select>
         )}
+
+        {search || statusFilter || categoryFilter ? (
+          <button type="button" className="btn btn-secondary" onClick={() => { setSearch(''); setStatusFilter(''); setCategoryFilter(''); }}>
+            <X size={14} /> Clear filters
+          </button>
+        ) : null}
+        <span style={{ color: 'var(--ink-dim)', fontSize: '0.85rem' }}>{filteredRows.length} {filteredRows.length === 1 ? 'item' : 'items'}</span>
 
         {/* Bulk Action Buttons */}
         {selectedIds.length > 0 && (
@@ -417,6 +458,9 @@ function ContentList() {
                       </td>
                       <td>
                         <b style={{ color: '#fff', fontSize: '0.98rem' }}>{x.title}</b>
+                        {x.pageTemplate === 'code' ? (
+                          <span title="Built in code (src/app/(site)/[slug]) — content edits here do not change the live page" style={{ marginLeft: 8, fontSize: '0.68rem', letterSpacing: '.08em', textTransform: 'uppercase', color: '#c6a15b', border: '1px solid rgba(198,161,91,.45)', borderRadius: 4, padding: '1px 6px', verticalAlign: 'middle' }}>Code page</span>
+                        ) : null}
                         <br />
                         <small style={{ color: '#9a8f7e', fontFamily: 'var(--font-roboto), Arial, sans-serif' }}>/{x.slug}</small>
                         <div className="row-actions" style={{ display: 'flex', gap: '10px', marginTop: '6px', fontSize: '0.78rem' }}>

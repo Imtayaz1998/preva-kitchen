@@ -71,13 +71,13 @@ body h2 { font-size: clamp(2rem, 3.4vw, 2.9rem) !important; line-height: 1.14 !i
 body h3 { font-size: 1.1rem !important; line-height: 1.3 !important; }
 body p { font-size: 1rem !important; line-height: 1.75 !important; }
 body .eyebrow { font-size: 0.78rem !important; letter-spacing: 0.18em !important; }
-body .wrap, body .container, body .wrapper, body .inner, body .content-wrap {
+body .wrap, body .container, body .wrapper, body .inner, body .content-wrap, body .pw {
   width: 100% !important; max-width: 1240px !important; margin-inline: auto !important; padding-inline: 32px !important; box-sizing: border-box !important;
 }
 @media (max-width: 767px) {
   body h1 { font-size: clamp(2rem, 9vw, 2.5rem) !important; }
   body h2 { font-size: clamp(1.6rem, 7vw, 2.1rem) !important; }
-  body .wrap, body .container, body .wrapper, body .inner, body .content-wrap { padding-inline: 18px !important; }
+  body .wrap, body .container, body .wrapper, body .inner, body .content-wrap, body .pw { padding-inline: 18px !important; }
 }`;
 
 export function buildCodeDocument({ html = '', css = '', js = '', origin = '', matchSite = true }) {

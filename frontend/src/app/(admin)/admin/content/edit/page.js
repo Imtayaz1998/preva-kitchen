@@ -1354,6 +1354,11 @@ function EditContentForm() {
   };
 
   const openPreview = async () => {
+    // Code pages render from their own route, not from this editor — show the live page.
+    if (form.pageTemplate === 'code' && form.slug) {
+      window.open(`${window.location.origin}/${form.slug}`, '_blank', 'noopener,noreferrer');
+      return;
+    }
     setSaving(true);
     setMessage('Saving draft and preparing preview…');
     
@@ -1414,6 +1419,15 @@ function EditContentForm() {
       {loading ? (
         <div className="panel"><LoadingSkeleton rows={6} /></div>
       ) : (
+        <>
+        {type === 'PAGE' && form.pageTemplate === 'code' ? (
+          <div className="notice" style={{ marginBottom: '20px', border: '1px solid rgba(198,161,91,.45)', background: 'rgba(198,161,91,.08)', color: '#e9dcc0', padding: '14px 18px', borderRadius: '10px', lineHeight: 1.6 }}>
+            <strong style={{ color: '#c6a15b' }}>Code page.</strong> This page is built in the website code
+            (<code>src/app/(site)/{form.slug}/page.js</code>, content in <code>src/data/eventLandingPages.js</code>) and is live at{' '}
+            <a href={`/${form.slug}`} target="_blank" rel="noopener noreferrer" style={{ color: '#c6a15b' }}>/{form.slug}</a>.
+            It is listed here so every page is in one place — changing the content, template or SEO fields below does not change the live page.
+          </div>
+        ) : null}
         <form onSubmit={save} style={{ display: 'grid', gridTemplateColumns: '3fr 1fr', gap: '30px' }} className="editor-layout">
           {/* Main Content Column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -2304,6 +2318,7 @@ function EditContentForm() {
                   <option value="default">Default (title banner + content column)</option>
                   <option value="fullwidth">Full Width (title banner + your design edge-to-edge)</option>
                   <option value="landing">Custom Code (your HTML + CSS + JS, exactly as written)</option>
+                  {form.pageTemplate === 'code' ? <option value="code">Code page (built in the website code)</option> : null}
                 </select>
 
                 <label>Sort Order</label>
@@ -2312,6 +2327,7 @@ function EditContentForm() {
             )}
           </div>
         </form>
+        </>
       )}
 
       {/* Media Selector Overlay Modal */}
