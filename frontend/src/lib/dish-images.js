@@ -1,5 +1,6 @@
 // Local, curated photo per dish slug. Used by the menu grid, the dish page and
-// the dish page's share image, so a dish never shows a generic or wrong photo.
+// the dish page's share image when a dish has no image of its own. The image
+// set in the admin always wins, otherwise changing it there does nothing.
 export const DISH_LOCAL_MAP = {
   'rasta-pasta': '/asset/home-reference/signature-dishes/Rasta-Pasta.webp',
   'veggie-pasta': '/asset/prevaclub/wp-content/uploads/2026/08/Veggie-Pasta-768x614.webp',
@@ -24,5 +25,5 @@ export const DISH_LOCAL_MAP = {
 export const FALLBACK_DISH_IMAGE = '/asset/home-reference/signature-dishes/Rasta-Pasta.webp';
 
 export function dishImage(product) {
-  return DISH_LOCAL_MAP[product?.slug] || product?.image || FALLBACK_DISH_IMAGE;
+  return product?.image || DISH_LOCAL_MAP[product?.slug] || FALLBACK_DISH_IMAGE;
 }

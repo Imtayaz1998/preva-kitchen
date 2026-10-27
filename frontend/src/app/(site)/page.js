@@ -21,7 +21,11 @@ export const metadata = pageMetadata({
 
 export default async function HomePage() {
   // Same source and fallback as /menu, so "Preva Favorites" always matches it.
-  const products = await cmsFetch('/shop/products');
+  const [products, categories] = await Promise.all([
+    cmsFetch('/shop/products'),
+    cmsFetch('/shop/categories')
+  ]);
   const menuProducts = Array.isArray(products) && products.length > 0 ? products : FALLBACK_PRODUCTS;
-  return <HomeContent menuProducts={menuProducts} />;
+  const menuCategories = Array.isArray(categories) ? categories : [];
+  return <HomeContent menuProducts={menuProducts} menuCategories={menuCategories} />;
 }

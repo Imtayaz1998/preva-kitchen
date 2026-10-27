@@ -384,7 +384,7 @@ del('/admin/sections/:key', { auth: true, roles: MANAGE }, async (ctx) => {
    subtly wrong, so it is written once.
    ══════════════════════════════════════════════════════════════════════════ */
 
-function resource({ path, collection, entity, roles = WRITE, sort = { name: 1 }, unique = null, build }) {
+function resource({ path, collection, entity, roles = WRITE, sort = { name: 1 }, unique = null, build, afterUpdate = null }) {
   get(`/admin/${path}`, { auth: true }, async () => {
     const target = await col(collection);
     const rows = await target.find().sort(sort).toArray();
@@ -418,7 +418,9 @@ function resource({ path, collection, entity, roles = WRITE, sort = { name: 1 },
       if (clash) throw badRequest(`Another ${entity.toLowerCase().replace('_', ' ')} already uses that ${unique}.`);
     }
 
+    const before = { ...current };
     await target.updateOne({ _id: id }, { $set: { ...document, updatedAt: new Date() } });
+    if (afterUpdate) await afterUpdate(before, document);
     await logActivity(ctx, 'UPDATE', entity, document.name || document.title || '');
     return serialize({ ...current, ...document, _id: id });
   });
@@ -636,6 +638,29 @@ resource({
   }
 });
 
+/* Food menu categories. A dish stores its category by name, so renaming a
+   category here also moves its dishes. */
+resource({
+  path: 'menu-categories', collection: 'menuCategories', entity: 'MENU_CATEGORY', unique: 'slug',
+  sort: { sortOrder: 1, name: 1 },
+  build: (body) => {
+    const name = cleanText(body?.name, 80);
+    if (!name) throw badRequest('A category name is required.');
+    return {
+      name,
+      slug: slug(body?.slug || name),
+      image: cleanText(body?.image, 2000),
+      description: cleanText(body?.description, 500),
+      sortOrder: cleanInt(body?.sortOrder, 0)
+    };
+  },
+  afterUpdate: async (current, document) => {
+    if (current.name === document.name) return;
+    const items = await col('menuItems');
+    await items.updateMany({ category: current.name }, { $set: { category: document.name, updatedAt: new Date() } });
+  }
+});
+
 /* Menu items carry the shop fields too, so one screen manages both the
    printed menu and what can be ordered online. */
 resource({
@@ -660,7 +685,9 @@ resource({
       category: cleanText(body?.category, 80) || 'Others',
       image: cleanText(body?.image, 2000) || null,
       available: cleanBool(body?.available, true),
-      orderable: cleanBool(body?.orderable, current?.orderable ?? false),
+      // A dish added in the admin should get its /menu page straight away, so
+      // new items default to orderable; existing items keep what they had.
+      orderable: cleanBool(body?.orderable, current?.orderable ?? true),
       featured: cleanBool(body?.featured, false),
       badge: cleanText(body?.badge ?? current?.badge, 40),
       servings: cleanText(body?.servings ?? current?.servings, 40),

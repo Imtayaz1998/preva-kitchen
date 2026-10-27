@@ -79,7 +79,20 @@ get('/shop/categories', async () => {
     { $group: { _id: '$category', count: { $sum: 1 }, image: { $first: '$image' } } },
     { $sort: { _id: 1 } }
   ]).toArray();
-  return rows.map((row) => ({ name: typeof row._id === 'object' ? String(row._id || 'Others') : (row._id || 'Others'), count: Number(row.count) || 1, image: String(row.image || '') }));
+  // Categories added in the admin carry their own image and order; a category
+  // only shows on the menu once it has at least one dish.
+  const managed = await (await col('menuCategories')).find().sort({ sortOrder: 1, name: 1 }).toArray();
+  const byName = new Map(managed.map((category) => [category.name, category]));
+  return rows.map((row) => {
+    const name = typeof row._id === 'object' ? String(row._id || 'Others') : (row._id || 'Others');
+    const category = byName.get(name);
+    return {
+      name,
+      count: Number(row.count) || 1,
+      image: String(row.image || ''),
+      ...(category ? { categoryImage: category.image || '', sortOrder: Number(category.sortOrder) || 0, managed: true } : {})
+    };
+  });
 });
 
 get('/shop/products/:slug', async ({ params }) => {

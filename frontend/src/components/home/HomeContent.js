@@ -75,13 +75,16 @@ const highlights = [
 ];
 
 // Category cards are built from the menu itself: real category names and the
-// photo of the first dish in each category.
-function buildCategories(menuProducts) {
+// category photo set in the admin, else the photo of the first dish in it.
+function buildCategories(menuProducts, menuCategories = []) {
+  const categoryImages = new Map(
+    menuCategories.filter((category) => category?.categoryImage).map((category) => [category.name, category.categoryImage])
+  );
   const groups = new Map();
   for (const product of withoutLegacyDuplicates(menuProducts)) {
     if (product.available === false || !product.category) continue;
-    const group = groups.get(product.category) || { name: product.category, image: '' };
-    if (!group.image) group.image = signatureDishPhotos[product.slug] || product.image || '';
+    const group = groups.get(product.category) || { name: product.category, image: categoryImages.get(product.category) || '' };
+    if (!group.image) group.image = product.image || signatureDishPhotos[product.slug] || '';
     groups.set(product.category, group);
   }
   return [...groups.values()];
@@ -89,7 +92,8 @@ function buildCategories(menuProducts) {
 
 const SIGNATURE_DISH_COUNT = 8;
 
-// Better home-page crops for a few dishes; any other dish uses its own menu image.
+// Home-page crops for a few dishes, used only when the dish has no image set
+// in the admin (the admin image always wins).
 const signatureDishPhotos = {
   'mac-and-cheese': '/asset/home-reference/signature-dishes/PrevaMac-600x600.webp',
   'preva-mac-and-cheese': '/asset/home-reference/signature-dishes/PrevaMac-600x600.webp',
@@ -118,13 +122,13 @@ function buildSignatureDishes(menuProducts) {
       slug: product.slug,
       price: money(product.priceCents),
       description: product.description || '',
-      image: signatureDishPhotos[product.slug] || product.image || '/asset/home-reference/signature-dishes/Rasta-Pasta.webp'
+      image: product.image || signatureDishPhotos[product.slug] || '/asset/home-reference/signature-dishes/Rasta-Pasta.webp'
     }));
 }
 
-export default function Home({ menuProducts = [] }) {
+export default function Home({ menuProducts = [], menuCategories = [] }) {
   const signatureDishes = buildSignatureDishes(menuProducts);
-  const categories = buildCategories(menuProducts);
+  const categories = buildCategories(menuProducts, menuCategories);
   // Autoplaying background video is exactly what prefers-reduced-motion
   // asks sites to avoid — fall back to the poster image (a still frame) for
   // anyone who has that on, instead of forcing the motion on them.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { 
   UtensilsCrossed, 
   Plus, 
@@ -13,27 +13,15 @@ import {
   HelpCircle, 
   ShoppingBag,
   ArrowRight,
-  Eye
+  Eye,
+  Search
 } from 'lucide-react';
 import Shell from '@/components/admin/Shell';
 import { PageHeader, LoadingSkeleton } from '@/components/admin/AdminUI';
 import { api } from '@/lib/admin-api';
 import { KITCHEN_MENU_ITEMS } from '@/lib/kitchen-menu-data';
 import { getDefaultAboutTitle, getDefaultFaqs } from '@/lib/dish-detail-content';
-
-const categories = [
-  'Preva Wings',
-  'Preva Burger',
-  'Quesadillas',
-  'Tacos',
-  'Preva Bites',
-  'Pasta',
-  'Salads',
-  'Entrées',
-  'Sides',
-  'Dessert',
-  'Others'
-];
+import { mergeMenuCategories } from '@/lib/menu-categories';
 
 const blankTemplate = {
   id: '',
@@ -66,15 +54,23 @@ export default function DishDetailsTemplateManager() {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [managedCategories, setManagedCategories] = useState([]);
+  const [dishSearch, setDishSearch] = useState('');
 
   // Load all dishes from backend or fallback to authentic static list
   async function loadDishes() {
     setLoading(true);
     let items = [];
     try {
-      const res = await api('/admin/menu-items');
+      const [res, categoryRes] = await Promise.all([
+        api('/admin/menu-items'),
+        api('/admin/menu-categories')
+      ]);
       if (res.ok) {
         items = await res.json();
+      }
+      if (categoryRes.ok) {
+        setManagedCategories(await categoryRes.json());
       }
     } catch (e) {
       console.error(e);
@@ -92,11 +88,26 @@ export default function DishDetailsTemplateManager() {
 
     setMenuList(items);
     setLoading(false);
+    return items;
   }
 
   useEffect(() => {
-    loadDishes();
+    // /admin/menu-details?id=<dish id> opens that dish (linked from Food Menu).
+    loadDishes().then((items) => {
+      const id = new URLSearchParams(window.location.search).get('id');
+      const found = id && items.find((item) => item.id === id);
+      if (found) selectDish(found);
+    });
   }, []);
+
+  const categories = useMemo(() => mergeMenuCategories(managedCategories, menuList), [managedCategories, menuList]);
+
+  const dishQuery = dishSearch.trim().toLowerCase();
+  // The selected dish stays in the list so the select never loses its value.
+  const visibleDishes = dishQuery
+    ? menuList.filter((item) => (item.id || item.slug) === selectedId || [item.name, item.slug, item.category, item.price]
+      .some((value) => String(value || '').toLowerCase().includes(dishQuery)))
+    : menuList;
 
   function selectDish(dish) {
     setSelectedId(dish.id || dish.slug);
@@ -211,6 +222,7 @@ export default function DishDetailsTemplateManager() {
       if (response.ok) {
         const saved = await response.json();
         setForm(prev => ({ ...prev, id: saved.id || prev.id }));
+        if (saved.id) setSelectedId(saved.id);
         setSaveSuccess(true);
         await loadDishes();
         setTimeout(() => setSaveSuccess(false), 4000);
@@ -260,6 +272,18 @@ export default function DishDetailsTemplateManager() {
           <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
             Select Dish to Edit:
           </label>
+          <div style={{ position: 'relative', flex: '0 1 220px' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-muted)' }} />
+            <input
+              className="input"
+              type="search"
+              value={dishSearch}
+              onChange={(e) => setDishSearch(e.target.value)}
+              placeholder="Search dishes..."
+              aria-label="Search dishes"
+              style={{ margin: 0, paddingLeft: '30px', width: '100%' }}
+            />
+          </div>
           <select
             className="input"
             style={{ maxWidth: '340px', margin: 0 }}
@@ -274,7 +298,8 @@ export default function DishDetailsTemplateManager() {
             }}
           >
             <option value="new">+ Create Brand New Dish Template...</option>
-            {menuList.map((item, idx) => (
+            {dishQuery && <option disabled>{visibleDishes.length} match{visibleDishes.length === 1 ? '' : 'es'} for &ldquo;{dishSearch.trim()}&rdquo;</option>}
+            {visibleDishes.map((item, idx) => (
               <option key={item.id || idx} value={item.id || item.slug}>
                 {item.name} ({item.category}) — {item.price}
               </option>

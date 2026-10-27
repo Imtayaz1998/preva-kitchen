@@ -4,13 +4,13 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { money } from '@/lib/money';
 import Tilt3DCard from '../Tilt3DCard';
-import { Sparkles, ArrowRight } from 'lucide-react';
-import { DISH_LOCAL_MAP } from '@/lib/dish-images';
+import { Sparkles, ArrowRight, Search } from 'lucide-react';
+import { dishImage } from '@/lib/dish-images';
 import { CATEGORY_IMAGES, CANONICAL_CATEGORIES, normalizeCategoryName, categoryPath } from '@/lib/menu-categories';
 
 export function ProductCard({ product }) {
   const soldOut = !product.available;
-  const imageSrc = DISH_LOCAL_MAP[product.slug] || product.image || '/asset/home-reference/signature-dishes/Rasta-Pasta.webp';
+  const imageSrc = dishImage(product);
 
   return (
     <Tilt3DCard className="ps-card">
@@ -60,6 +60,8 @@ export function ProductCard({ product }) {
 
 export default function ProductGrid({ products, categories }) {
   const [active, setActive] = useState('All');
+  const [search, setSearch] = useState('');
+  const query = search.trim().toLowerCase();
 
   // Normalize products with standard category names
   const normalizedProducts = useMemo(() => {
@@ -69,18 +71,41 @@ export default function ProductGrid({ products, categories }) {
     }));
   }, [products]);
 
-  // Extract deduplicated unique categories ordered canonically
+  // Categories managed in the admin bring their own image and sort order.
+  const managedCategories = useMemo(() => {
+    const map = new Map();
+    for (const category of Array.isArray(categories) ? categories : []) {
+      if (category?.managed) map.set(normalizeCategoryName(category.name), category);
+    }
+    return map;
+  }, [categories]);
+
+  // Extract deduplicated unique categories: admin order first, then canonical
   const distinctCategories = useMemo(() => {
     const present = new Set(normalizedProducts.map((p) => p.normalizedCategory));
-    const ordered = CANONICAL_CATEGORIES.filter((cat) => present.has(cat));
-    present.forEach((cat) => {
-      if (!ordered.includes(cat)) ordered.push(cat);
-    });
-    return ordered;
-  }, [normalizedProducts]);
+    const rank = (cat) => {
+      const managed = managedCategories.get(cat);
+      if (managed) return Number(managed.sortOrder) || 0;
+      // Built-in categories sit at 0, 10, 20 ... so an admin sort order can
+      // slot a new category between them.
+      const canonical = CANONICAL_CATEGORIES.indexOf(cat);
+      return canonical === -1 ? 999 : canonical * 10;
+    };
+    return [...present].sort((a, b) => rank(a) - rank(b));
+  }, [normalizedProducts, managedCategories]);
 
   // Group products by category
   const categoryGroups = useMemo(() => {
+    // A search looks through every category and lists the matches together.
+    if (query) {
+      const matches = normalizedProducts.filter((p) => {
+        const tags = Array.isArray(p.tags) ? p.tags.join(' ') : '';
+        return [p.name, p.description, p.normalizedCategory, tags]
+          .some((value) => String(value || '').toLowerCase().includes(query));
+      });
+      return [{ category: `Results for “${search.trim()}”`, items: matches, isSearch: true }];
+    }
+
     if (active !== 'All') {
       const filtered = normalizedProducts.filter((p) => p.normalizedCategory === active);
       return [{ category: active, items: filtered }];
@@ -92,16 +117,38 @@ export default function ProductGrid({ products, categories }) {
         items: normalizedProducts.filter((p) => p.normalizedCategory === cat)
       }))
       .filter((group) => group.items.length > 0);
-  }, [normalizedProducts, distinctCategories, active]);
+  }, [normalizedProducts, distinctCategories, active, query, search]);
 
   return (
     <>
+      {/* ── Search ── */}
+      <div style={{ position: 'relative', maxWidth: '520px', margin: '32px auto 8px' }}>
+        <Search size={18} aria-hidden="true" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#c5a059' }} />
+        <input
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search the menu: wings, pasta, salmon..."
+          aria-label="Search the menu"
+          style={{
+            width: '100%',
+            padding: '14px 18px 14px 46px',
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(213, 164, 79, 0.3)',
+            borderRadius: '999px',
+            color: '#ffffff',
+            fontSize: '15px',
+            outline: 'none'
+          }}
+        />
+      </div>
+
       {/* ── Circular Food Image Category Navigation Bar ── */}
       <nav className="ps-circle-category-bar" aria-label="Menu categories">
         <button
           type="button"
           data-active={active === 'All'}
-          onClick={() => setActive('All')}
+          onClick={() => { setActive('All'); setSearch(''); }}
           className="ps-cat-circle"
         >
           <div className="ps-cat-circle__wrap">
@@ -111,14 +158,17 @@ export default function ProductGrid({ products, categories }) {
         </button>
 
         {distinctCategories.map((catName) => {
-          const imgSrc = CATEGORY_IMAGES[catName] || '/asset/home-reference/signature-dishes/Rasta-Pasta.webp';
+          const imgSrc = managedCategories.get(catName)?.categoryImage
+            || CATEGORY_IMAGES[catName]
+            || normalizedProducts.find((p) => p.normalizedCategory === catName && p.image)?.image
+            || '/asset/home-reference/signature-dishes/Rasta-Pasta.webp';
 
           return (
             <button
               key={catName}
               type="button"
               data-active={active === catName}
-              onClick={() => setActive(catName)}
+              onClick={() => { setActive(catName); setSearch(''); }}
               className="ps-cat-circle"
             >
               <div className="ps-cat-circle__wrap">
@@ -132,8 +182,8 @@ export default function ProductGrid({ products, categories }) {
 
       {/* ── Category-wise Grouped Dishes Display ── */}
       <div style={{ display: 'grid', gap: '64px', marginTop: '24px' }}>
-        {categoryGroups.length === 0 ? (
-          <p className="ps-empty">No dishes found in this category right now.</p>
+        {categoryGroups.length === 0 || categoryGroups[0].items.length === 0 ? (
+          <p className="ps-empty">{query ? `No dishes match “${search.trim()}”. Try another word.` : 'No dishes found in this category right now.'}</p>
         ) : (
           categoryGroups.map((group) => (
             <section
@@ -179,6 +229,11 @@ export default function ProductGrid({ products, categories }) {
                     </h2>
                   </div>
 
+                  {group.isSearch ? (
+                    <span style={{ color: '#c5a059', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                      {group.items.length} {group.items.length === 1 ? 'Dish' : 'Dishes'}
+                    </span>
+                  ) : (
                   <Link
                     href={categoryPath(group.category)}
                     style={{
@@ -197,6 +252,7 @@ export default function ProductGrid({ products, categories }) {
                   >
                     {group.items.length} {group.items.length === 1 ? 'Dish' : 'Dishes'} · View all
                   </Link>
+                  )}
                 </div>
               </div>
 

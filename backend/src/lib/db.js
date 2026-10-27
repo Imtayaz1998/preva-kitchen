@@ -1437,6 +1437,14 @@ class InMemoryCollection {
     return { matchedCount: doc ? 1 : 0, modifiedCount: doc ? 1 : 0 };
   }
 
+  async updateMany(filter, update) {
+    const docs = this.store.filter((d) => this._matches(d, filter));
+    for (const doc of docs) {
+      for (const [key, value] of Object.entries(update.$set || {})) this._write(doc, key, value);
+    }
+    return { matchedCount: docs.length, modifiedCount: docs.length };
+  }
+
   async findOneAndUpdate(filter, update, options = {}) {
     let doc = this.store.find((d) => this._matches(d, filter));
     if (!doc && options.upsert) {

@@ -1,25 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Plus, ListTree, Upload, Trash2, Edit, ExternalLink } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { Plus, ListTree, Upload, Trash2, Edit, ExternalLink, FolderTree, Search, FileText } from 'lucide-react';
 import Shell from '@/components/admin/Shell';
 import { LoadingSkeleton, PageHeader, EmptyState } from '@/components/admin/AdminUI';
 import { useConfirm } from '@/components/admin/ConfirmDialog';
 import { api } from '@/lib/admin-api';
+import { CANONICAL_CATEGORIES, mergeMenuCategories } from '@/lib/menu-categories';
 
-const categories = [
-  'Preva Wings',
-  'Preva Burger',
-  'Quesadillas',
-  'Tacos',
-  'Preva Bites',
-  'Pasta',
-  'Salads',
-  'Entrées',
-  'Sides',
-  'Dessert',
-  'Others'
-];
+const NEW_CATEGORY = '__new__';
+
+const emptyCategory = { id: '', name: '', image: '', sortOrder: 100 };
 
 const emptyForm = {
   id: '',
@@ -49,15 +41,30 @@ export default function FoodMenuManager() {
   const [form, setForm] = useState(emptyForm);
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [managedCategories, setManagedCategories] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [categoryForm, setCategoryForm] = useState(emptyCategory);
+  const [categoryUploading, setCategoryUploading] = useState(false);
 
   async function load() {
     setLoading(true);
-    const response = await api('/admin/menu-items');
+    const [response, categoryResponse] = await Promise.all([
+      api('/admin/menu-items'),
+      api('/admin/menu-categories')
+    ]);
     if (response.ok) {
       setRows(await response.json());
     }
+    if (categoryResponse.ok) {
+      setManagedCategories(await categoryResponse.json());
+    }
     setLoading(false);
   }
+
+  const categories = useMemo(() => mergeMenuCategories(managedCategories, rows), [managedCategories, rows]);
 
   useEffect(() => {
     load();
@@ -70,6 +77,7 @@ export default function FoodMenuManager() {
       tags: Array.isArray(row.tags) ? row.tags.join(', ') : (row.tags || ''),
       pairings: Array.isArray(row.pairings) ? row.pairings.join(', ') : (row.pairings || '')
     });
+    setNewCategoryName('');
     setOpen(true);
   }
 
@@ -103,8 +111,30 @@ export default function FoodMenuManager() {
 
   async function save(event) {
     event.preventDefault();
+    let category = form.category;
+    if (category === NEW_CATEGORY) {
+      category = newCategoryName.trim();
+      if (!category) return alert('Enter a name for the new category.');
+      const existing = categories.find((name) => name.toLowerCase() === category.toLowerCase());
+      if (existing) {
+        category = existing;
+      } else {
+        const created = await api('/admin/menu-categories', {
+          method: 'POST',
+          body: JSON.stringify({ name: category, sortOrder: nextCategorySort() })
+        });
+        if (!created.ok) {
+          return alert((await created.json().catch(() => null))?.message || 'Could not create the category.');
+        }
+      }
+    }
+
+    // priceCents comes along with an edited row; drop it so the price typed
+    // in the form is the one that gets saved.
+    const { priceCents, ...rest } = form;
     const payload = {
-      ...form,
+      ...rest,
+      category,
       sortOrder: Number(form.sortOrder) || 10,
       tags: typeof form.tags === 'string' ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : form.tags,
       pairings: typeof form.pairings === 'string' ? form.pairings.split(',').map(p => p.trim()).filter(Boolean) : form.pairings
@@ -137,9 +167,93 @@ export default function FoodMenuManager() {
     }
   }
 
-  const filteredRows = activeTab === 'All' 
-    ? rows 
-    : rows.filter(r => r.category === activeTab);
+  function nextCategorySort() {
+    const highest = Math.max(
+      (CANONICAL_CATEGORIES.length - 1) * 10,
+      ...managedCategories.map((category) => Number(category.sortOrder) || 0)
+    );
+    return highest + 10;
+  }
+
+  /* ── Category manager ── */
+
+  function editCategory(category) {
+    setCategoryForm(category
+      ? { ...emptyCategory, ...category }
+      : { ...emptyCategory, sortOrder: nextCategorySort() });
+  }
+
+  async function uploadCategoryImage(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return alert('Please choose an image file.');
+    if (file.size > 5 * 1024 * 1024) return alert('Image must be smaller than 5MB.');
+
+    setCategoryUploading(true);
+    const data = new FormData();
+    data.append('files', file);
+    const response = await api('/admin/media/upload', { method: 'POST', body: data });
+    if (response.ok) {
+      const uploaded = await response.json();
+      setCategoryForm((current) => ({ ...current, image: uploaded[0]?.url || current.image }));
+    } else {
+      alert((await response.json().catch(() => null))?.message || 'Image upload failed.');
+    }
+    setCategoryUploading(false);
+  }
+
+  async function saveCategory(event) {
+    event.preventDefault();
+    if (!categoryForm.name.trim()) return alert('A category name is required.');
+    const response = await api(categoryForm.id ? `/admin/menu-categories/${categoryForm.id}` : '/admin/menu-categories', {
+      method: categoryForm.id ? 'PUT' : 'POST',
+      body: JSON.stringify({
+        name: categoryForm.name,
+        image: categoryForm.image,
+        sortOrder: Number(categoryForm.sortOrder) || 0
+      })
+    });
+    if (!response.ok) {
+      return alert((await response.json().catch(() => null))?.message || 'Could not save the category.');
+    }
+    editCategory(null);
+    await load();
+  }
+
+  async function removeCategory(category) {
+    const count = rows.filter((row) => row.category === category.name).length;
+    if (!await confirmAction({
+      title: 'Delete category?',
+      description: count
+        ? `"${category.name}" still has ${count} dish${count === 1 ? '' : 'es'}. They keep this category name; move them to another category to change where they show.`
+        : `"${category.name}" will be removed from the category list.`,
+      confirmLabel: 'Delete category',
+      tone: 'danger'
+    })) return;
+
+    const response = await api(`/admin/menu-categories/${category.id}`, { method: 'DELETE' });
+    if (!response.ok) {
+      return alert((await response.json().catch(() => null))?.message || 'Could not delete the category.');
+    }
+    await load();
+  }
+
+  // Search runs across every category: name, slug, description, category,
+  // price and tags all match.
+  const query = search.trim().toLowerCase();
+  const filteredRows = rows.filter((row) => {
+    if (activeTab !== 'All' && row.category !== activeTab) return false;
+    if (statusFilter === 'available' && !row.available) return false;
+    if (statusFilter === 'unavailable' && row.available) return false;
+    if (statusFilter === 'featured' && !row.featured) return false;
+    if (!query) return true;
+    const tags = Array.isArray(row.tags) ? row.tags.join(' ') : (row.tags || '');
+    return [row.name, row.slug, row.description, row.category, row.price, tags]
+      .some((value) => String(value || '').toLowerCase().includes(query));
+  });
+
+  const countFor = (cat) => (cat === 'All' ? rows.length : rows.filter((row) => row.category === cat).length);
 
   const previewSlug = form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'new-dish';
 
@@ -150,19 +264,62 @@ export default function FoodMenuManager() {
         title="Restaurant Food Menu & Details Pages"
         description="Every dish added here automatically generates its dedicated public details page, SEO tags, delivery channels, and FAQ section."
         icon={ListTree}
-        actions={<button className="btn" onClick={() => edit()}><Plus size={15} /> Add new dish</button>}
+        actions={(
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button className="btn btn-secondary" onClick={() => { editCategory(null); setCategoriesOpen(true); }}>
+              <FolderTree size={15} /> Manage categories
+            </button>
+            <button className="btn" onClick={() => edit()}><Plus size={15} /> Add new dish</button>
+          </div>
+        )}
       />
+
+      {/* Search & Filters */}
+      <div className="panel" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px', padding: '12px' }}>
+        <div style={{ position: 'relative', flex: '1 1 260px' }}>
+          <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-muted)' }} />
+          <input
+            className="input"
+            type="search"
+            value={search}
+            onChange={(event) => { setSearch(event.target.value); if (event.target.value) setActiveTab('All'); }}
+            placeholder="Search all dishes by name, category, tag, price..."
+            style={{ margin: 0, paddingLeft: '34px', width: '100%' }}
+            aria-label="Search dishes"
+          />
+        </div>
+        <select className="input" value={activeTab} onChange={(event) => setActiveTab(event.target.value)} style={{ margin: 0, flex: '0 1 200px' }} aria-label="Filter by category">
+          <option value="All">All categories ({rows.length})</option>
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>{cat} ({countFor(cat)})</option>
+          ))}
+        </select>
+        <select className="input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} style={{ margin: 0, flex: '0 1 170px' }} aria-label="Filter by status">
+          <option value="all">All statuses</option>
+          <option value="available">Available</option>
+          <option value="unavailable">Unavailable</option>
+          <option value="featured">Chef&rsquo;s specials</option>
+        </select>
+        {(search || activeTab !== 'All' || statusFilter !== 'all') && (
+          <button type="button" className="btn btn-secondary" onClick={() => { setSearch(''); setActiveTab('All'); setStatusFilter('all'); }}>
+            Clear
+          </button>
+        )}
+        <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>
+          {filteredRows.length} of {rows.length} dishes
+        </span>
+      </div>
 
       {/* Category Tabs */}
       <div className="segmented-tabs" style={{ marginBottom: '20px', flexWrap: 'wrap' }}>
-        {['All', ...categories].map((cat) => (
+        {['All', ...categories.filter((cat) => countFor(cat) > 0)].map((cat) => (
           <button
             key={cat}
             type="button"
             className={`btn ${activeTab === cat ? '' : 'inactive-kind'}`}
             onClick={() => setActiveTab(cat)}
           >
-            {cat}
+            {cat} <span style={{ opacity: 0.6 }}>({countFor(cat)})</span>
           </button>
         ))}
       </div>
@@ -172,8 +329,10 @@ export default function FoodMenuManager() {
       ) : !filteredRows.length ? (
         <EmptyState
           title="No menu items found"
-          description={activeTab === 'All' ? "Start adding signature dishes. Each dish gets a dedicated details page automatically." : `No items added under "${activeTab}" category yet.`}
-          action={activeTab === 'All' ? <button className="btn" onClick={() => edit()}><Plus size={15} /> Add new dish</button> : null}
+          description={query || statusFilter !== 'all'
+            ? 'No dishes match this search or filter.'
+            : activeTab === 'All' ? "Start adding signature dishes. Each dish gets a dedicated details page automatically." : `No items added under "${activeTab}" category yet.`}
+          action={activeTab === 'All' && !query && statusFilter === 'all' ? <button className="btn" onClick={() => edit()}><Plus size={15} /> Add new dish</button> : null}
         />
       ) : (
         <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
@@ -266,6 +425,14 @@ export default function FoodMenuManager() {
                         <button className="btn btn-secondary" onClick={() => edit(row)} title="Edit item">
                           <Edit size={14} />
                         </button>
+                        <Link
+                          href={`/admin/menu-details?id=${row.id}`}
+                          className="btn btn-secondary"
+                          title="Edit details page (About, FAQs, delivery links)"
+                          style={{ padding: '6px 8px' }}
+                        >
+                          <FileText size={14} />
+                        </Link>
                         <button className="btn btn-danger" onClick={() => remove(row)} title="Delete item">
                           <Trash2 size={14} />
                         </button>
@@ -315,7 +482,19 @@ export default function FoodMenuManager() {
                   {categories.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
+                  <option value={NEW_CATEGORY}>+ Add new category...</option>
                 </select>
+                {form.category === NEW_CATEGORY && (
+                  <input
+                    className="input"
+                    value={newCategoryName}
+                    onChange={(event) => setNewCategoryName(event.target.value)}
+                    placeholder="New category name, e.g. Drinks"
+                    style={{ marginTop: '6px' }}
+                    autoFocus
+                    required
+                  />
+                )}
               </label>
 
               <label className="field">
@@ -387,6 +566,109 @@ export default function FoodMenuManager() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Category Manager Modal */}
+      {categoriesOpen && (
+        <div className="modal-overlay" onClick={() => setCategoriesOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header">
+              <div>
+                <h3>Menu Categories</h3>
+                <p style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>
+                  Add a category and set its photo and order on the /menu page. A category shows on the website once it has a dish.
+                </p>
+              </div>
+              <button className="icon-button" type="button" onClick={() => setCategoriesOpen(false)}>×</button>
+            </div>
+
+            <form onSubmit={saveCategory} className="form-grid" style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: '10px', marginBottom: '16px' }}>
+              <label className="field">
+                {categoryForm.id ? 'Category name' : 'New category name'} *
+                <input className="input" value={categoryForm.name} onChange={(e) => setCategoryForm((c) => ({ ...c, name: e.target.value }))} placeholder="e.g. Drinks" required />
+              </label>
+              <label className="field">
+                Sort order
+                <input className="input" type="number" value={categoryForm.sortOrder} onChange={(e) => setCategoryForm((c) => ({ ...c, sortOrder: e.target.value }))} />
+                <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Built-in categories use 0, 10, 20 ... 90 (Wings = 0, Dessert = 90).</span>
+              </label>
+              <div className="field field-span">
+                <label>Category photo (round image on /menu)</label>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginTop: '4px' }}>
+                  {categoryForm.image && (
+                    <img src={categoryForm.image} alt="" style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '50%', border: '1px solid var(--border)' }} />
+                  )}
+                  <input className="input" value={categoryForm.image} onChange={(e) => setCategoryForm((c) => ({ ...c, image: e.target.value }))} placeholder="Paste image URL or upload" style={{ margin: 0, flex: 1 }} />
+                  <label className="btn btn-secondary" style={{ display: 'inline-flex', cursor: 'pointer', gap: '6px', margin: 0, padding: '8px 12px' }}>
+                    <Upload size={14} />
+                    {categoryUploading ? 'Uploading...' : 'Upload'}
+                    <input type="file" accept="image/*" onChange={uploadCategoryImage} disabled={categoryUploading} style={{ display: 'none' }} />
+                  </label>
+                </div>
+              </div>
+              <div className="field field-span" style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                {categoryForm.id && (
+                  <button type="button" className="btn btn-secondary" onClick={() => editCategory(null)}>Cancel edit</button>
+                )}
+                <button type="submit" className="btn" disabled={categoryUploading}>
+                  {categoryForm.id ? 'Update category' : <><Plus size={14} /> Save category</>}
+                </button>
+              </div>
+            </form>
+
+            <table className="table">
+              <thead>
+                <tr>
+                  <th style={{ width: '56px' }}>Photo</th>
+                  <th>Category</th>
+                  <th>Dishes</th>
+                  <th>Order</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories.filter((name) => name !== 'Others' || countFor(name) > 0).map((name) => {
+                  const saved = managedCategories.find((category) => category.name === name);
+                  const builtIn = CANONICAL_CATEGORIES.indexOf(name);
+                  return (
+                    <tr key={name}>
+                      <td>
+                        {saved?.image ? (
+                          <img src={saved.image} alt="" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '50%' }} />
+                        ) : (
+                          <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Default</span>
+                        )}
+                      </td>
+                      <td>
+                        <b>{name}</b>
+                        {!saved && <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>{builtIn !== -1 ? 'Built-in' : 'Used by a dish'}</div>}
+                      </td>
+                      <td>{countFor(name)}</td>
+                      <td>{saved ? (saved.sortOrder || 0) : (builtIn !== -1 ? builtIn * 10 : '—')}</td>
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            title={saved ? 'Edit category' : 'Customize photo and order'}
+                            onClick={() => editCategory(saved || { ...emptyCategory, name, sortOrder: builtIn !== -1 ? builtIn * 10 : nextCategorySort() })}
+                          >
+                            <Edit size={14} />
+                          </button>
+                          {saved && (
+                            <button type="button" className="btn btn-danger" title="Delete category" onClick={() => removeCategory(saved)}>
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </Shell>

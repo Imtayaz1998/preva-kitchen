@@ -19,7 +19,7 @@ import {
 export const dynamic = 'force-dynamic';
 
 async function loadCategory(slug) {
-  const data = await cmsFetch('/shop/products');
+  const [data, categories] = await Promise.all([cmsFetch('/shop/products'), cmsFetch('/shop/categories')]);
   const all = withoutLegacyDuplicates(Array.isArray(data) && data.length > 0 ? data : FALLBACK_PRODUCTS);
   const available = all.filter((product) => product.category);
   const items = available.filter((product) => categorySlug(product.category) === slug);
@@ -32,7 +32,8 @@ async function loadCategory(slug) {
       const bi = CANONICAL_CATEGORIES.indexOf(b);
       return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
     });
-  return { name, items, otherNames };
+  const managed = (Array.isArray(categories) ? categories : []).find((category) => category.name === items[0].category);
+  return { name, items, otherNames, image: managed?.categoryImage || CATEGORY_IMAGES[name] || items.find((item) => item.image)?.image };
 }
 
 export async function generateMetadata({ params }) {
@@ -44,7 +45,7 @@ export async function generateMetadata({ params }) {
     title: copy.heading,
     description: truncateAtWord(`${copy.blurb} Order online or call (313) 286-3586.`, 155),
     path: categoryPath(category.name),
-    image: CATEGORY_IMAGES[category.name] || undefined,
+    image: category.image || undefined,
     imageSize: null
   });
 }

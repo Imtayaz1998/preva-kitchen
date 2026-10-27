@@ -30,6 +30,18 @@ export const CANONICAL_CATEGORIES = [
   'Dessert'
 ];
 
+// Category names for the admin pickers, in menu order: categories saved in the
+// admin use their sort order, built-in ones sit at 0, 10, 20 ..., and any other
+// name a dish already uses goes last.
+export function mergeMenuCategories(managed = [], items = []) {
+  const rank = new Map();
+  CANONICAL_CATEGORIES.forEach((name, index) => rank.set(name, index * 10));
+  managed.forEach((category) => rank.set(category.name, Number(category.sortOrder) || 0));
+  items.forEach((item) => { if (item.category && !rank.has(item.category)) rank.set(item.category, 999); });
+  if (!rank.has('Others')) rank.set('Others', 1000);
+  return [...rank.keys()].sort((a, b) => rank.get(a) - rank.get(b));
+}
+
 export function normalizeCategoryName(name) {
   if (!name) return 'Other';
   const clean = String(name).trim();
