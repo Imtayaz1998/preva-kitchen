@@ -107,5 +107,17 @@ get('/shop/products/:slug', async ({ params }) => {
     .limit(4)
     .toArray();
 
+  // A dish alone in its category (a new one, or Dessert) still gets a
+  // "More from the Menu" row, from live menu data rather than the frontend's
+  // static fallback list. Dishes with category siblings keep "More <Category>".
+  if (related.length === 0) {
+    const fill = await menuItems
+      .find({ orderable: true, available: { $ne: false }, category: { $ne: row.category } })
+      .sort({ featured: -1, sortOrder: 1 })
+      .limit(3)
+      .toArray();
+    related.push(...fill);
+  }
+
   return { product: toProduct(row), related: related.map(toProduct) };
 });

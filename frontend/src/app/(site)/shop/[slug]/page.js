@@ -61,8 +61,10 @@ export default async function ProductPage({ params }) {
   const aboutParagraphs = parseAboutContent(product.aboutContent, product);
   const faqs = getDishFaqs(product);
   const displayName = getDishDisplayName(product);
-  // Only promise "More <Category>" when the list really leads with that category.
-  const relatedTitle = product.category && related[0]?.category === product.category ? `More ${product.category}` : 'More from the Menu';
+  // Only promise "More <Category>" when every dish listed is from that category.
+  const relatedTitle = product.category && related.length > 0 && related.every((item) => item.category === product.category)
+    ? `More ${product.category}`
+    : 'More from the Menu';
   const linksBackToWingsHub = isWingFlavorPage(product);
   const crossCategoryPairings = getCrossCategoryPairings(product);
   const siteOrigin = getCanonicalOrigin();
