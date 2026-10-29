@@ -30,6 +30,16 @@ export const CANONICAL_CATEGORIES = [
   'Dessert'
 ];
 
+export function sortMenuCategoryNames(names, managed = []) {
+  const rank = new Map(CANONICAL_CATEGORIES.map((name, index) => [name, index * 10]));
+  for (const category of managed) {
+    if (category?.name) rank.set(category.name, Number(category.sortOrder) || 0);
+  }
+  return [...new Set(names)].sort((a, b) => (
+    (rank.get(a) ?? 1000) - (rank.get(b) ?? 1000) || a.localeCompare(b)
+  ));
+}
+
 // Category names for the admin pickers, in menu order: categories saved in the
 // admin use their sort order, built-in ones sit at 0, 10, 20 ..., and any other
 // name a dish already uses goes last.

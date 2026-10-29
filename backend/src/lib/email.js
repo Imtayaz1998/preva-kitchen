@@ -18,7 +18,8 @@ const BRAND_PHONE  = '(313) 286-3586';
 // attached, so mail clients show it in the header only).
 const LOGO_URL = 'https://prevakitchen.com/asset/preva-kitchen-logo-email.png';
 
-function getFromAddress() {
+function getFromAddress(account) {
+  if (account === 'career') return 'Preva Kitchen Careers <careers@prevakitchen.com>';
   const configured = String(
     process.env.FROM_EMAIL || process.env.STAFF_EMAIL_FROM || ''
   ).trim();
@@ -54,10 +55,8 @@ function getReservationRecipients() {
   );
 }
 
-function getCareerRecipients() {
-  return parseRecipients(
-    process.env.CAREER_EMAIL || process.env.CAREER_ADMIN_EMAIL || process.env.HR_EMAIL || 'careers@prevakitchen.com'
-  );
+export function getCareerRecipients() {
+  return ['careers@prevakitchen.com'];
 }
 
 function isProduction() {
@@ -97,24 +96,22 @@ async function logEmailAttempt({ formType, recipientType, to, subject, status, p
    1. Nodemailer: Zero DNS setup. Send from your Gmail account via App Password.
    2. Resend: API-based delivery (free 3,000 emails/month).                  */
 
-function getSmtpConfig(account) {
+export function getSmtpConfig(account) {
   const host = String(process.env.SMTP_HOST || 'smtp.gmail.com').trim();
   const port = Number(process.env.SMTP_PORT) || 465;
   const secure = process.env.SMTP_SECURE !== undefined
     ? String(process.env.SMTP_SECURE).toLowerCase() === 'true'
     : port === 465;
 
-  // Career mail sends from its own mailbox; falls back to the default account
-  // until CAREER_SMTP_USER + CAREER_SMTP_PASS are both set.
   if (account === 'career') {
-    const user = String(process.env.CAREER_SMTP_USER || '').trim();
+    const user = 'careers@prevakitchen.com';
     const pass = String(process.env.CAREER_SMTP_PASS || '').replace(/\s+/g, '').trim();
-    if (user && pass) return { user, pass, host, port, secure, from: `Preva Kitchen Careers <${user}>` };
+    return { user, pass, host, port, secure, from: getFromAddress(account) };
   }
 
   const user = String(process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
   const pass = String(process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '').trim();
-  return { user, pass, host, port, secure, from: getFromAddress() };
+  return { user, pass, host, port, secure, from: getFromAddress(account) };
 }
 
 const _transporters = new Map();
@@ -1016,11 +1013,19 @@ export async function notifyContactCustomer(data) {
 /** Customer confirmation for a career application submission. */
 export async function notifyCareerApplicationCustomer(data) {
   if (!data.email) return false;
+  const applicantEmail = String(data.email).trim().toLowerCase();
+  const staffRecipients = [
+    ...getCareerRecipients(),
+    ...getReservationRecipients(),
+    ...getContactRecipients(),
+    ...getAdminRecipients()
+  ].map((email) => email.toLowerCase());
+  if (staffRecipients.includes(applicantEmail)) return false;
   const candidateName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
   const position = data.position || data.role || '';
   const replyTo = getCareerRecipients()[0];
   return send({
-    to: data.email,
+    to: applicantEmail,
     replyTo,
     subject: 'Application Received - PREVA Kitchen',
     html: customerConfirmationHtml({

@@ -1,7 +1,7 @@
 import { pageMetadata } from '@/lib/seo';
 import { cmsFetch } from '@/lib/cms';
-import { FALLBACK_PRODUCTS } from '@/data/fallbackMenu';
 import HomeContent from '@/components/home/HomeContent';
+import { menuCategoriesOrFallback, menuProductsOrFallback } from '@/lib/menu-data';
 
 export const metadata = pageMetadata({
   title: 'Preva Kitchen | Restaurant in Redford Township, MI',
@@ -25,7 +25,7 @@ export default async function HomePage() {
     cmsFetch('/shop/products'),
     cmsFetch('/shop/categories')
   ]);
-  const menuProducts = Array.isArray(products) && products.length > 0 ? products : FALLBACK_PRODUCTS;
-  const menuCategories = Array.isArray(categories) ? categories : [];
+  const menuProducts = menuProductsOrFallback(products);
+  const menuCategories = menuCategoriesOrFallback(categories);
   return <HomeContent menuProducts={menuProducts} menuCategories={menuCategories} />;
 }

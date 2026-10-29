@@ -5,33 +5,32 @@ import { ProductCard } from '@/components/shop/ProductGrid';
 import { pageMetadata, truncateAtWord } from '@/lib/seo';
 import { getCanonicalOrigin } from '@/lib/site-url';
 import { generateBreadcrumbSchema } from '@/lib/seo-schema';
-import { FALLBACK_PRODUCTS } from '@/data/fallbackMenu';
 import { withoutLegacyDuplicates } from '@/lib/legacy-dish-slugs';
+import { getMenuDisplayName } from '@/lib/menu-options';
+import { menuProductsOrFallback } from '@/lib/menu-data';
 import {
-  CANONICAL_CATEGORIES,
   CATEGORY_IMAGES,
   categoryCopy,
   categoryPath,
   categorySlug,
-  normalizeCategoryName
+  normalizeCategoryName,
+  sortMenuCategoryNames
 } from '@/lib/menu-categories';
 
 export const dynamic = 'force-dynamic';
 
 async function loadCategory(slug) {
   const [data, categories] = await Promise.all([cmsFetch('/shop/products'), cmsFetch('/shop/categories')]);
-  const all = withoutLegacyDuplicates(Array.isArray(data) && data.length > 0 ? data : FALLBACK_PRODUCTS);
+  const all = withoutLegacyDuplicates(menuProductsOrFallback(data));
   const available = all.filter((product) => product.category);
   const items = available.filter((product) => categorySlug(product.category) === slug);
   if (items.length === 0) return null;
   const name = normalizeCategoryName(items[0].category);
-  const otherNames = [...new Set(available.map((product) => normalizeCategoryName(product.category)))]
-    .filter((other) => categorySlug(other) !== slug)
-    .sort((a, b) => {
-      const ai = CANONICAL_CATEGORIES.indexOf(a);
-      const bi = CANONICAL_CATEGORIES.indexOf(b);
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    });
+  const otherNames = sortMenuCategoryNames(
+    [...new Set(available.map((product) => normalizeCategoryName(product.category)))]
+      .filter((other) => categorySlug(other) !== slug),
+    Array.isArray(categories) ? categories : []
+  );
   const managed = (Array.isArray(categories) ? categories : []).find((category) => category.name === items[0].category);
   return { name, items, otherNames, image: managed?.categoryImage || CATEGORY_IMAGES[name] || items.find((item) => item.image)?.image };
 }
@@ -58,7 +57,7 @@ export default async function MenuCategoryPage({ params }) {
   const origin = getCanonicalOrigin();
   const copy = categoryCopy(category.name);
   const path = categoryPath(category.name);
-  const names = category.items.map((item) => item.name);
+  const names = category.items.map((item) => getMenuDisplayName(item.name, item.slug));
   const nameList = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
 
   const faqs = [
@@ -89,7 +88,7 @@ export default async function MenuCategoryPage({ params }) {
             '@type': 'ListItem',
             position: index + 1,
             url: `${origin}/menu/${encodeURIComponent(item.slug)}`,
-            name: item.name
+            name: getMenuDisplayName(item.name, item.slug)
           }))
         }
       },

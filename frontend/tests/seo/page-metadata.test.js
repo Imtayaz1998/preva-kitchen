@@ -18,6 +18,14 @@ import { describe, it, expect } from 'vitest';
 import { pageMetadata, truncateAtWord } from '@/lib/seo';
 import { dishImage } from '@/lib/dish-images';
 import { getDishMetaDescription } from '@/lib/dish-detail-content';
+import {
+  getMenuCustomization,
+  getMenuOptionImage,
+  getMenuProductDescription,
+  getMenuProductName,
+  MENU_IMAGE_UNAVAILABLE,
+  normalizeMenuSelection
+} from '@/lib/menu-options';
 import { readSource, extractCallArgs, extractConstValue, extractStatementSource, evalExpression } from '../helpers/sourceExtract.js';
 import { srcPath } from '../helpers/paths.js';
 import { FIXTURE_PRODUCT, FIXTURE_JOB } from '../helpers/fixtures.js';
@@ -101,22 +109,41 @@ describe('SEO guardrails: dynamic indexable pages (fixture data)', () => {
     // next.config.mjs — shop/[slug] is the implementation, /menu is canonical).
     const file = srcPath('app', '(site)', 'shop', '[slug]', 'page.js');
     const source = readSource(file);
+    const seoProduct = {
+      ...FIXTURE_PRODUCT,
+      seoTitle: 'Custom menu SEO title',
+      seoDescription: 'Custom menu SEO description'
+    };
 
     // generateMetadata() computes `description` in a statement above the
     // pageMetadata({...}) call (via getDishMetaDescription) — extract
     // and evaluate that first so the real formula runs against fixture data,
     // then make it available when evaluating the pageMetadata() args.
+    const config = getMenuCustomization(seoProduct.slug);
+    const selection = config ? normalizeMenuSelection(config) : {};
+    const productName = getMenuProductName(config, selection) || seoProduct.name;
+    const displayProduct = { ...seoProduct, name: productName };
     const descriptionSrc = extractStatementSource(source, 'description');
     expect(descriptionSrc, 'expected a "const description = ...;" statement in shop/[slug]/page.js').toBeTruthy();
-    const description = evalExpression(descriptionSrc, { product: FIXTURE_PRODUCT, getDishMetaDescription });
+    const description = evalExpression(descriptionSrc, {
+      product: seoProduct,
+      displayProduct,
+      getDishMetaDescription,
+      getMenuProductDescription
+    });
+    const image = MENU_IMAGE_UNAVAILABLE.has(seoProduct.slug)
+      ? undefined
+      : getMenuOptionImage(seoProduct, config, selection, dishImage(seoProduct));
 
     const argsSrc = extractCallArgs(source, 'pageMetadata');
     expect(argsSrc, 'expected a pageMetadata({...}) call in shop/[slug]/page.js').toBeTruthy();
 
     const args = evalExpression(argsSrc, {
-      product: FIXTURE_PRODUCT,
-      slug: FIXTURE_PRODUCT.slug,
+      product: seoProduct,
+      productName,
+      slug: seoProduct.slug,
       description,
+      image,
       encodeURIComponent,
       truncateAtWord,
       dishImage
@@ -125,8 +152,9 @@ describe('SEO guardrails: dynamic indexable pages (fixture data)', () => {
 
     assertIndexableMetadata(metadata, { label: 'menu/[slug] (fixture product)' });
     assertValidCanonicalPath(metadata.alternates.canonical, { label: 'menu/[slug]' });
-    expect(metadata.alternates.canonical).toBe(`/menu/${FIXTURE_PRODUCT.slug}`);
-    expect(metadata.title).toContain(FIXTURE_PRODUCT.name);
+    expect(metadata.alternates.canonical).toBe(`/menu/${seoProduct.slug}`);
+    expect(metadata.title).toEqual({ absolute: seoProduct.seoTitle });
+    expect(metadata.description).toBe(seoProduct.seoDescription);
   });
 
   it('careers/[slug] job page produces valid metadata for a fixture job', () => {

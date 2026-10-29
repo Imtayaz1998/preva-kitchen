@@ -4,6 +4,7 @@ import { getPublishedCareerJobs } from '@/lib/career-api';
 import { FALLBACK_PRODUCTS } from '@/data/fallbackMenu';
 import { FALLBACK_POSTS } from '@/data/fallbackPosts';
 import { categoryPath } from '@/lib/menu-categories';
+import { withOfficialMenuAdditions } from '@/lib/menu-options';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 3600; // Cache 1 hour
@@ -58,7 +59,9 @@ export default async function sitemap() {
       priority: 0.8
     }));
 
-  const productList = Array.isArray(products) && products.length > 0 ? products : FALLBACK_PRODUCTS;
+  const productList = Array.isArray(products)
+    ? products
+    : process.env.NODE_ENV === 'production' ? [] : withOfficialMenuAdditions(FALLBACK_PRODUCTS);
   const productEntries = productList
     .filter(prod => !legacyDishSlugs.has(String(prod.slug || '')))
     .map(prod => ({

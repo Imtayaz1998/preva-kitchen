@@ -1,6 +1,7 @@
 import { col, serialize, asObjectId } from '../lib/db.js';
 import { cleanText, formatMoney } from '../lib/sanitize.js';
 import { shopSettings, itemPriceCents } from '../lib/pricing.js';
+import { hiddenMenuCategoryNames, isMenuItemPubliclyVisible } from '../lib/menu-visibility.js';
 import { get, notFound } from '../router.js';
 import { getKitchenOperatingStatus } from '../lib/operatingHours.js';
 
@@ -23,6 +24,9 @@ function toProduct(item) {
     id: out.id,
     slug: out.slug || out.id,
     name: out.name,
+    seoTitle: out.seoTitle || '',
+    seoDescription: out.seoDescription || '',
+    focusKeyword: out.focusKeyword || '',
     description: out.description || '',
     aboutTitle: out.aboutTitle || '',
     aboutContent: out.aboutContent || '',
@@ -64,18 +68,19 @@ get('/shop/settings', async () => shopSettings());
 
 get('/shop/products', async ({ query }) => {
   const menuItems = await col('menuItems');
-  const filter = { orderable: true };
+  const filter = { orderable: true, isVisible: { $ne: false } };
   if (query.category) filter.category = cleanText(query.category, 80);
   if (query.featured === 'true') filter.featured = true;
 
   const rows = await menuItems.find(filter).sort({ category: 1, sortOrder: 1, name: 1 }).toArray();
-  return rows.map(toProduct);
+  const hiddenCategories = await hiddenMenuCategoryNames();
+  return rows.filter((item) => isMenuItemPubliclyVisible(item, hiddenCategories)).map(toProduct);
 });
 
 get('/shop/categories', async () => {
   const menuItems = await col('menuItems');
   const rows = await menuItems.aggregate([
-    { $match: { orderable: true, available: { $ne: false } } },
+    { $match: { orderable: true, available: { $ne: false }, isVisible: { $ne: false } } },
     { $group: { _id: '$category', count: { $sum: 1 }, image: { $first: '$image' } } },
     { $sort: { _id: 1 } }
   ]).toArray();
@@ -83,7 +88,8 @@ get('/shop/categories', async () => {
   // only shows on the menu once it has at least one dish.
   const managed = await (await col('menuCategories')).find().sort({ sortOrder: 1, name: 1 }).toArray();
   const byName = new Map(managed.map((category) => [category.name, category]));
-  return rows.map((row) => {
+  const hiddenCategories = await hiddenMenuCategoryNames();
+  return rows.filter((row) => !hiddenCategories.has(String(row._id || 'Others'))).map((row) => {
     const name = typeof row._id === 'object' ? String(row._id || 'Others') : (row._id || 'Others');
     const category = byName.get(name);
     return {
@@ -92,31 +98,38 @@ get('/shop/categories', async () => {
       image: String(row.image || ''),
       ...(category ? { categoryImage: category.image || '', sortOrder: Number(category.sortOrder) || 0, managed: true } : {})
     };
-  });
+  }).sort((a, b) => (
+    (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0) ||
+    a.name.localeCompare(b.name)
+  ));
 });
 
 get('/shop/products/:slug', async ({ params }) => {
   const menuItems = await col('menuItems');
   const byId = asObjectId(params.slug);
   const row = await menuItems.findOne(byId ? { _id: byId } : { slug: params.slug });
-  if (!row || row.orderable === false) throw notFound('That item is not on the menu.');
+  const hiddenCategories = await hiddenMenuCategoryNames();
+  if (!row || row.orderable === false || !isMenuItemPubliclyVisible(row, hiddenCategories)) {
+    throw notFound('That item is not on the menu.');
+  }
 
-  const related = await menuItems
-    .find({ orderable: true, category: row.category, _id: { $ne: row._id } })
+  const relatedRows = await menuItems
+    .find({ orderable: true, isVisible: { $ne: false }, category: row.category, _id: { $ne: row._id } })
     .sort({ sortOrder: 1 })
     .limit(4)
     .toArray();
+  const related = relatedRows.filter((item) => isMenuItemPubliclyVisible(item, hiddenCategories));
 
   // A dish alone in its category (a new one, or Dessert) still gets a
   // "More from the Menu" row, from live menu data rather than the frontend's
   // static fallback list. Dishes with category siblings keep "More <Category>".
   if (related.length === 0) {
     const fill = await menuItems
-      .find({ orderable: true, available: { $ne: false }, category: { $ne: row.category } })
+    .find({ orderable: true, available: { $ne: false }, isVisible: { $ne: false }, category: { $ne: row.category } })
       .sort({ featured: -1, sortOrder: 1 })
       .limit(3)
       .toArray();
-    related.push(...fill);
+    related.push(...fill.filter((item) => isMenuItemPubliclyVisible(item, hiddenCategories)));
   }
 
   return { product: toProduct(row), related: related.map(toProduct) };

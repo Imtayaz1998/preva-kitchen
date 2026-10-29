@@ -27,6 +27,9 @@ const blankTemplate = {
   id: '',
   name: '',
   slug: '',
+  seoTitle: '',
+  seoDescription: '',
+  focusKeyword: '',
   price: '',
   category: 'Preva Wings',
   description: '',
@@ -115,6 +118,9 @@ export default function DishDetailsTemplateManager() {
       id: dish.id && !String(dish.id).startsWith('static-') ? dish.id : '',
       name: dish.name || '',
       slug: dish.slug || (dish.name ? dish.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : ''),
+      seoTitle: dish.seoTitle || '',
+      seoDescription: dish.seoDescription || '',
+      focusKeyword: dish.focusKeyword || '',
       price: dish.price || '',
       category: dish.category || 'Preva Wings',
       description: dish.description || '',
@@ -309,7 +315,7 @@ export default function DishDetailsTemplateManager() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>
-            Live Page Route:
+            Live Permalink:
           </span>
           <code style={{ fontSize: '12px', background: 'rgba(201, 163, 78, 0.1)', color: 'var(--accent)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(201, 163, 78, 0.25)' }}>
             /menu/{publicUrlSlug}
@@ -341,9 +347,56 @@ export default function DishDetailsTemplateManager() {
               </label>
 
               <label className="field">
-                URL Slug (/menu/slug) *
+                Permalink (/menu/slug) *
                 <input className="input" name="slug" value={form.slug} onChange={change} required placeholder="e.g. rasta-pasta" />
+                <span style={{ fontSize: '11px', color: 'var(--ink-muted)', marginTop: '3px' }}>
+                  Public URL: https://prevakitchen.com/menu/{publicUrlSlug}
+                </span>
               </label>
+
+              <div className="field field-span" style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)', display: 'block', marginBottom: '8px' }}>
+                  Search Engine Optimization
+                </span>
+                <div className="form-grid">
+                  <label className="field field-span">
+                    SEO Title
+                    <input
+                      className="input"
+                      name="seoTitle"
+                      value={form.seoTitle}
+                      onChange={change}
+                      maxLength={250}
+                      placeholder={form.name ? `${form.name} in Redford, MI` : 'Dish title shown in search results'}
+                    />
+                  </label>
+                  <label className="field field-span">
+                    SEO Description
+                    <textarea
+                      className="input"
+                      name="seoDescription"
+                      value={form.seoDescription}
+                      onChange={change}
+                      rows="3"
+                      maxLength={400}
+                      placeholder="Search result description for this dish"
+                    />
+                    <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>{form.seoDescription.length}/400 characters</span>
+                  </label>
+                  <label className="field field-span">
+                    Focus Keyword
+                    <input
+                      className="input"
+                      name="focusKeyword"
+                      value={form.focusKeyword}
+                      onChange={change}
+                      maxLength={160}
+                      placeholder="e.g. Rasta Pasta in Redford MI"
+                    />
+                    <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Saved with this dish for SEO editing and management.</span>
+                  </label>
+                </div>
+              </div>
 
               <label className="field">
                 Price *

@@ -14,36 +14,7 @@ export const FALLBACK_PRODUCTS = [
     badge: 'Signature',
     rating: '4.9',
     servings: '12 pieces',
-    sortOrder: 1,
-    optionGroups: [
-      {
-        id: 'flavour',
-        label: 'Flavor Choice',
-        type: 'radio',
-        required: true,
-        maxPick: 1,
-        options: [
-          { id: 'honey-hot', label: 'Honey Hot', priceCents: 0, available: true },
-          { id: 'buffalo', label: 'House Buffalo', priceCents: 0, available: true },
-          { id: 'sweet-chili', label: 'Sweet Chili', priceCents: 0, available: true },
-          { id: 'bbq', label: 'BBQ', priceCents: 0, available: true },
-          { id: 'garlic-parm', label: 'Garlic Parmesan', priceCents: 0, available: true },
-          { id: 'lemon-pepper', label: 'Lemon Pepper', priceCents: 0, available: true },
-          { id: 'jerk', label: 'Caribbean Jerk', priceCents: 0, available: true }
-        ]
-      },
-      {
-        id: 'dip',
-        label: 'Add a dip',
-        type: 'check',
-        required: false,
-        maxPick: 2,
-        options: [
-          { id: 'ranch', label: 'Ranch', priceCents: 100, available: true },
-          { id: 'blue-cheese', label: 'Blue Cheese', priceCents: 100, available: true }
-        ]
-      }
-    ]
+    sortOrder: 1
   },
   {
     id: 'dish-2',
@@ -572,8 +543,27 @@ export const FALLBACK_PRODUCTS = [
     badge: '',
     rating: '4.9',
     sortOrder: 35
-  }
+  },
+  {
+    id: 'dish-36',
+    name: 'Ground Beef Tacos',
+    slug: 'ground-beef-tacos',
+    category: 'Tacos',
+    price: '$16.00',
+    priceCents: 1600,
+    description: 'Seasoned tacos topped with fresh slaw and house sauce.',
+    image: '/asset/prevaclub/wp-content/uploads/2026/08/PREVA-Taco.webp',
+    available: true,
+    orderable: true,
+    featured: false,
+    badge: '',
+    sortOrder: 36
+  },
 ];
+
+export const OFFICIAL_MENU_ADDITIONS = FALLBACK_PRODUCTS.filter(
+  (product) => product.slug === 'ground-beef-tacos'
+);
 
 export const FALLBACK_CATEGORIES = [
   'Preva Wings',

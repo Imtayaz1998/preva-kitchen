@@ -1,4 +1,5 @@
 // Complete database of Preva Kitchen Menu items with authentic high-res images, categories, dietary tags, and delivery links.
+import { getProductMenuPriceCents } from '@/lib/menu-options';
 
 export const KITCHEN_MENU_ITEMS = [
   {
@@ -88,6 +89,17 @@ export const KITCHEN_MENU_ITEMS = [
     tags: ["spicy", "caribbean", "jerk spice"],
     allergens: ["gluten"],
     pairings: ["Rice & Peas", "Fried Plantains"]
+  },
+  {
+    name: "Ground Beef Tacos",
+    slug: "ground-beef-tacos",
+    category: "Tacos",
+    price: "$16.00",
+    description: "Seasoned tacos topped with fresh slaw and house sauce.",
+    image: "/asset/prevaclub/wp-content/uploads/2026/08/PREVA-Taco.webp",
+    tags: [],
+    allergens: [],
+    pairings: ["Fries", "Rice & Peas"]
   },
   {
     name: "Preva Double Smash Burger",
@@ -375,7 +387,10 @@ export const KITCHEN_MENU_ITEMS = [
     allergens: ["dairy"],
     pairings: ["Preva Lamb Chops", "Rasta Pasta"]
   }
-];
+].map((item) => ({
+  ...item,
+  price: `$${(getProductMenuPriceCents(item) / 100).toFixed(2)}`
+}));
 
 const SLUG_ALIASES = {
   'honey-hot-wings': 'honey-hot',
@@ -493,4 +508,3 @@ export function getDeliveryLinks(dishSlug = 'rasta-pasta') {
     pickup: `tel:+13132863586`
   };
 }
-

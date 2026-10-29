@@ -4,8 +4,10 @@ import PrivateDiningBanner from '@/components/shop/PrivateDiningBanner';
 import MenuOrderSection from '@/components/shop/MenuOrderSection';
 import { getCanonicalOrigin } from '@/lib/site-url';
 import { generateMenuPageSchema } from '@/lib/seo-schema';
-import { FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from '@/data/fallbackMenu';
 import { withoutLegacyDuplicates } from '@/lib/legacy-dish-slugs';
+import { getMenuProductDescription, getProductMenuPriceCents } from '@/lib/menu-options';
+import { menuCategoriesOrFallback, menuProductsOrFallback } from '@/lib/menu-data';
+import { money } from '@/lib/money';
 
 export default async function ShopContent() {
   const origin = getCanonicalOrigin();
@@ -14,9 +16,14 @@ export default async function ShopContent() {
     cmsFetch('/shop/categories')
   ]);
 
-  const list = withoutLegacyDuplicates(Array.isArray(products) && products.length > 0 ? products : FALLBACK_PRODUCTS);
-  const cats = Array.isArray(categories) && categories.length > 0 ? categories : FALLBACK_CATEGORIES;
-  const menuSchema = generateMenuPageSchema(list, origin);
+  const list = withoutLegacyDuplicates(menuProductsOrFallback(products));
+  const cats = menuCategoriesOrFallback(categories);
+  const menuSchema = generateMenuPageSchema(list.map((product) => ({
+    ...product,
+    priceCents: getProductMenuPriceCents(product),
+    price: money(getProductMenuPriceCents(product)),
+    description: getMenuProductDescription(product)
+  })), origin);
 
   return (
     <>

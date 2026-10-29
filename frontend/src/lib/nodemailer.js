@@ -12,7 +12,7 @@ const BRAND_ADDRESS = '13090 Inkster Rd, Redford Township, MI 48239';
 const BRAND_PHONE = '(313) 286-3586';
 const BRAND_GOLD = '#C9A96E';
 
-const SMTP_KEYS = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'CONTACT_SMTP_USER', 'CONTACT_SMTP_PASS', 'CAREER_SMTP_USER', 'CAREER_SMTP_PASS'];
+const SMTP_KEYS = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_SECURE', 'SMTP_USER', 'SMTP_PASS', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'CONTACT_SMTP_USER', 'CONTACT_SMTP_PASS', 'CAREER_SMTP_PASS'];
 let _backendSmtpEnv;
 
 // On the server the backend's .env already holds the Gmail SMTP login (the
@@ -34,7 +34,7 @@ function backendSmtpEnv() {
         if (!match || !SMTP_KEYS.includes(match[1])) continue;
         values[match[1]] = match[2].replace(/\s+#.*$/, '').replace(/^(['"])(.*)\1$/, '$2').trim();
       }
-      if (values.SMTP_PASS || values.GMAIL_APP_PASSWORD) {
+      if (values.SMTP_PASS || values.GMAIL_APP_PASSWORD || values.CONTACT_SMTP_PASS || values.CAREER_SMTP_PASS) {
         _backendSmtpEnv = values;
         break;
       }
@@ -46,12 +46,8 @@ function backendSmtpEnv() {
 }
 
 /**
- * SMTP login for a mail account. 'contact' uses the info@ mailbox
- * (CONTACT_SMTP_USER / CONTACT_SMTP_PASS) once its App Password is set;
- * until then, and for every other form, the default reservations@ login is used.
- * 'career' uses the HR mailbox (CAREER_SMTP_USER / CAREER_SMTP_PASS) so career
- * mail never goes through reservations@; without that password it falls back
- * to the info@ login.
+ * Career mail uses only its dedicated mailbox credentials and never falls
+ * back to another form's SMTP account.
  */
 export function getSmtpConfig(account = 'default') {
   const hasOwnPass = Boolean(String(process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').trim());
@@ -63,13 +59,18 @@ export function getSmtpConfig(account = 'default') {
     : port === 465;
 
   const careerPass = String(process.env.CAREER_SMTP_PASS || env.CAREER_SMTP_PASS || '').replace(/\s+/g, '').trim();
-  if (account === 'career' && careerPass) {
-    const user = String(process.env.CAREER_SMTP_USER || env.CAREER_SMTP_USER || 'careers@prevakitchen.com').trim();
-    return { host, port, secure, user, pass: careerPass };
+  if (account === 'career') {
+    return {
+      host,
+      port,
+      secure,
+      user: 'careers@prevakitchen.com',
+      pass: careerPass
+    };
   }
 
   const contactPass = String(process.env.CONTACT_SMTP_PASS || env.CONTACT_SMTP_PASS || '').replace(/\s+/g, '').trim();
-  if ((account === 'contact' || account === 'career') && contactPass) {
+  if (account === 'contact' && contactPass) {
     const user = String(process.env.CONTACT_SMTP_USER || env.CONTACT_SMTP_USER || 'info@prevakitchen.com').trim();
     return { host, port, secure, user, pass: contactPass };
   }
@@ -86,6 +87,7 @@ export function isSmtpConfigured(account = 'default') {
 }
 
 export function getFromAddress(account = 'default') {
+  if (account === 'career') return 'Preva Kitchen Careers <careers@prevakitchen.com>';
   const { user } = getSmtpConfig(account);
   return `Preva Kitchen <${user || 'reservations@prevakitchen.com'}>`;
 }
@@ -99,7 +101,7 @@ export function getContactRecipient() {
 }
 
 export function getCareerRecipient() {
-  return String(process.env.CAREER_EMAIL || 'careers@prevakitchen.com').trim();
+  return 'careers@prevakitchen.com';
 }
 
 export function getSiteUrl() {
@@ -626,7 +628,7 @@ export async function sendCareerEmail(data) {
 
   // 2. Applicant confirmation: goes to candidate's personal email
   let candidateTask = null;
-  if (data.email) {
+  if (data.email && !isStaffEmail(data.email)) {
     candidateTask = sendMail({
       account: 'career',
       to: data.email,

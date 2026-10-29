@@ -8,6 +8,7 @@ import {
 import { get, post, result, badRequest, notFound, unauthorized } from '../router.js';
 import { logActivity } from '../lib/activity.js';
 import { careerJobsCollection } from '../lib/career-jobs.js';
+import { hiddenMenuCategoryNames, isMenuItemPubliclyVisible } from '../lib/menu-visibility.js';
 import {
   notifyReservation, notifyVipRequest, notifyContactEnquiry, notifyCareerApplication,
   notifyReservationCustomer, notifyContactCustomer, notifyCareerApplicationCustomer,
@@ -630,16 +631,18 @@ get('/ordering-platforms', async ({ query }) => {
 
 get('/menu-items', async ({ query }) => {
   const items = await col('menuItems');
-  const filter = { available: true };
+  const filter = { available: true, isVisible: { $ne: false } };
   const category = cleanText(query.category, 80);
   if (category) filter.category = category;
   if (query.featured === 'true') filter.featured = true;
   const rows = await items.find(filter).sort({ category: 1, sortOrder: 1, name: 1 }).toArray();
-  return rows.map(serialize);
+  const hiddenCategories = await hiddenMenuCategoryNames();
+  return rows.filter((item) => isMenuItemPubliclyVisible(item, hiddenCategories)).map(serialize);
 });
 
 get('/menu-items/:slug', async ({ params }) => {
   const items = await col('menuItems');
+  const hiddenCategories = await hiddenMenuCategoryNames();
   const slugParam = cleanText(params.slug, 120);
   const row = await items.findOne({
     $or: [
@@ -649,7 +652,7 @@ get('/menu-items/:slug', async ({ params }) => {
     ],
     available: true
   });
-  if (!row) throw notFound('Menu item not found.');
+  if (!row || !isMenuItemPubliclyVisible(row, hiddenCategories)) throw notFound('Menu item not found.');
   return serialize(row);
 });
 

@@ -1,4 +1,7 @@
+'use client';
+
 import { ShoppingBag } from 'lucide-react';
+import { trackEvent } from '@/components/GoogleAnalytics';
 
 const DoorDashIcon = () => (
   <svg width="34" height="22" viewBox="0 0 34 22" fill="none" aria-hidden="true">
@@ -20,7 +23,7 @@ const GrubhubIcon = () => (
  * delivery partner's app (or by phone for pickup), so there is no cart here.
  * `subject` is the dish or restaurant name used in the accessible labels.
  */
-export default function OrderWayTiles({ links, subject }) {
+export default function OrderWayTiles({ links, subject, item }) {
   const tiles = [
     { name: 'Uber Eats', href: links.ubereats, mark: <span className="ps-way__uber">Uber<b>Eats</b></span> },
     { name: 'DoorDash', href: links.doordash, mark: <DoorDashIcon />, label: 'DoorDash' },
@@ -37,6 +40,15 @@ export default function OrderWayTiles({ links, subject }) {
           href={tile.href}
           {...(tile.external === false ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
           aria-label={tile.name === 'Pickup' ? `Call to order ${subject} for pickup` : `Order ${subject} on ${tile.name}`}
+          onClick={() => trackEvent('menu_order_click', {
+            item_id: item?.slug,
+            item_name: subject,
+            item_category: item?.category,
+            provider: tile.name,
+            currency: 'USD',
+            value: (item?.priceCents || 0) / 100,
+            selected_options: item?.options
+          })}
         >
           <span className="ps-way__mark">{tile.mark}</span>
           {tile.label && <span className="ps-way__name">{tile.label}</span>}

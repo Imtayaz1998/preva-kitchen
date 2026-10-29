@@ -60,6 +60,12 @@ database write. A provider failure is logged but does not turn an already
 saved form submission into an API error. Every attempt (sent/failed/skipped)
 is logged to the `emailLogs` Mongo collection and to the console.
 
+Career application admin notifications are fixed to
+`careers@prevakitchen.com`, use **Preva Kitchen Careers
+<careers@prevakitchen.com>** as the sender, and use the applicant's address as
+Reply-To. They do not inherit reservation recipient, sender, or SMTP settings.
+Applicant confirmations are sent separately to the applicant.
+
 ### 1. Configure Resend
 
 Create a Resend API key, verify `prevakitchen.com`, and add the DNS records
@@ -77,15 +83,15 @@ RESEND_API_KEY=re_your_api_key
 FROM_EMAIL=Preva Kitchen <notifications@prevakitchen.com>
 ADMIN_EMAIL=reservations@prevakitchen.com
 RESERVATION_ADMIN_EMAIL=reservations@prevakitchen.com
-HR_EMAIL=hr@prevakitchen.com
+CAREER_SMTP_PASS=your_careers_mailbox_app_password
 ADMIN_URL=https://prevakitchen.com/admin
 STOREFRONT_URL=https://prevakitchen.com
 ```
 
-`RESERVATION_ADMIN_EMAIL` and `HR_EMAIL` are optional overrides; both fall
-back to `ADMIN_EMAIL`. Comma-separated recipients are supported. Existing
-`ADMIN_EMAILS`, `STAFF_ALERT_EMAIL`, and `STAFF_EMAIL_FROM` values remain
-supported as deployment-compatible fallbacks.
+Career sender and recipient are fixed to the careers mailbox. `CAREER_SMTP_PASS`
+must contain that mailbox's SMTP app password; career mail does not fall back
+to the default reservation account. Reservation recipient overrides remain
+separate and unchanged.
 
 ### 3. Verify it works
 

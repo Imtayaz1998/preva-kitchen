@@ -11,6 +11,8 @@
 import './env.js';
 import nodemailer from 'nodemailer';
 import {
+  getCareerRecipients,
+  getSmtpConfig,
   notifyReservation,
   notifyReservationCustomer,
   notifyContactEnquiry,
@@ -40,7 +42,8 @@ const fromEmail = String(process.env.FROM_EMAIL || '').trim();
 
 const reservationEmail = String(process.env.RESERVATION_EMAIL || 'reservations@prevakitchen.com').trim();
 const contactEmail = String(process.env.CONTACT_EMAIL || 'info@prevakitchen.com').trim();
-const careerEmail = String(process.env.CAREER_EMAIL || 'careers@prevakitchen.com').trim();
+const careerEmail = getCareerRecipients()[0];
+const careerSmtp = getSmtpConfig('career');
 
 console.log('\nPREVA Kitchen Nodemailer SMTP Configuration Check\n');
 console.log(`SMTP Host:              ${smtpHost}`);
@@ -51,6 +54,8 @@ console.log(`From Address:           ${fromEmail ? `${GREEN}[OK]${RESET} ${fromE
 console.log(`Reservation Recipient:  ${GREEN}${reservationEmail}${RESET}`);
 console.log(`Contact Recipient:      ${GREEN}${contactEmail}${RESET}`);
 console.log(`Career Recipient:       ${GREEN}${careerEmail}${RESET}`);
+console.log(`Career From Address:    ${GREEN}${careerSmtp.from}${RESET}`);
+console.log(`Career SMTP:            ${careerSmtp.pass ? `${GREEN}[CONFIGURED]${RESET}` : `${YELLOW}[NOT SET] (Set CAREER_SMTP_PASS)${RESET}`}`);
 
 const reservation = {
   name: 'Maria Rossi',

@@ -11,6 +11,7 @@ const BACKEND = (backendUrl || 'http://localhost:4000').replace(/\/$/, '');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingRoot: here,
+  distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   poweredByHeader: false,
   compress: true,
 

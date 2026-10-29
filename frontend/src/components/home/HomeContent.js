@@ -8,7 +8,8 @@ import BookingSection from '@/components/home/BookingSection';
 import { getCanonicalOrigin } from '@/lib/site-url';
 import { money } from '@/lib/money';
 import { withoutLegacyDuplicates } from '@/lib/legacy-dish-slugs';
-import { categoryPath } from '@/lib/menu-categories';
+import { categoryPath, sortMenuCategoryNames } from '@/lib/menu-categories';
+import { withoutRemovedMenuProducts } from '@/lib/menu-options';
 import {
   ArrowRight,
   BadgeCheck,
@@ -81,13 +82,14 @@ function buildCategories(menuProducts, menuCategories = []) {
     menuCategories.filter((category) => category?.categoryImage).map((category) => [category.name, category.categoryImage])
   );
   const groups = new Map();
-  for (const product of withoutLegacyDuplicates(menuProducts)) {
+  for (const product of withoutLegacyDuplicates(withoutRemovedMenuProducts(menuProducts))) {
     if (product.available === false || !product.category) continue;
     const group = groups.get(product.category) || { name: product.category, image: categoryImages.get(product.category) || '' };
     if (!group.image) group.image = product.image || signatureDishPhotos[product.slug] || '';
     groups.set(product.category, group);
   }
-  return [...groups.values()];
+  const groupsByName = new Map([...groups.values()].map((category) => [category.name, category]));
+  return sortMenuCategoryNames([...groupsByName.keys()], menuCategories).map((name) => groupsByName.get(name));
 }
 
 const SIGNATURE_DISH_COUNT = 8;
@@ -112,7 +114,8 @@ const signatureDishPhotos = {
 // then the rest in menu order, 8 in total. Name, price, description and link
 // are the menu's own, so the home page can never disagree with /menu.
 function buildSignatureDishes(menuProducts) {
-  const available = withoutLegacyDuplicates(menuProducts).filter((product) => product.available !== false && product.slug);
+  const available = withoutLegacyDuplicates(withoutRemovedMenuProducts(menuProducts))
+    .filter((product) => product.available !== false && product.slug);
   const featured = available.filter((product) => product.featured);
   const rest = available.filter((product) => !product.featured);
   return [...featured, ...rest]
@@ -335,7 +338,9 @@ export default function Home({ menuProducts = [], menuCategories = [] }) {
             {categories.map((category) => (
               <Link className="pk-ref-category" href={categoryPath(category.name)} key={category.name}>
                 <span className="pk-ref-category-image">
-                  <img src={category.image} alt={`${category.name} at Preva Kitchen`} loading="lazy" />
+                  {category.image && (
+                    <img src={category.image} alt={`${category.name} at Preva Kitchen`} loading="lazy" />
+                  )}
                 </span>
                 <strong>{category.name}</strong>
                 <i aria-hidden="true" />
@@ -385,4 +390,3 @@ export default function Home({ menuProducts = [], menuCategories = [] }) {
     </div>
   );
 }
-

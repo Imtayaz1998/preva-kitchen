@@ -48,6 +48,7 @@ export default function FoodMenuManager() {
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [categoryForm, setCategoryForm] = useState(emptyCategory);
   const [categoryUploading, setCategoryUploading] = useState(false);
+  const [visibilitySaving, setVisibilitySaving] = useState('');
 
   async function load() {
     setLoading(true);
@@ -167,6 +168,38 @@ export default function FoodMenuManager() {
     }
   }
 
+  async function setVisibility(type, target, isVisible) {
+    const key = type === 'item' ? `item:${target.id}` : `category:${target.name}`;
+    setVisibilitySaving(key);
+    try {
+      const response = await api('/admin/menu-visibility', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          type,
+          ...(type === 'item' ? { id: target.id } : { name: target.name }),
+          isVisible
+        })
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.message || 'Could not update visibility.');
+      if (type === 'item') {
+        setRows((current) => current.map((row) => row.id === target.id ? { ...row, isVisible } : row));
+      } else {
+        setManagedCategories((current) => {
+          const found = current.some((category) => category.name === target.name);
+          return found
+            ? current.map((category) => category.name === target.name ? { ...category, isVisible } : category)
+            : [{ id: data.id, name: target.name, slug: target.name, image: '', sortOrder: 0, isVisible }, ...current];
+        });
+      }
+      alert(`${type === 'item' ? 'Menu item' : 'Category'} is now ${isVisible ? 'Visible' : 'Hidden'}.`);
+    } catch (error) {
+      alert(error.message || 'Could not update visibility.');
+    } finally {
+      setVisibilitySaving('');
+    }
+  }
+
   function nextCategorySort() {
     const highest = Math.max(
       (CANONICAL_CATEGORIES.length - 1) * 10,
@@ -223,20 +256,30 @@ export default function FoodMenuManager() {
 
   async function removeCategory(category) {
     const count = rows.filter((row) => row.category === category.name).length;
+    if (category.name === 'Others' && count > 0) {
+      return alert('Move dishes out of Others before deleting this category.');
+    }
     if (!await confirmAction({
       title: 'Delete category?',
       description: count
-        ? `"${category.name}" still has ${count} dish${count === 1 ? '' : 'es'}. They keep this category name; move them to another category to change where they show.`
+        ? `"${category.name}" has ${count} dish${count === 1 ? '' : 'es'}. They will be moved to Others, not deleted.`
         : `"${category.name}" will be removed from the category list.`,
       confirmLabel: 'Delete category',
       tone: 'danger'
     })) return;
 
-    const response = await api(`/admin/menu-categories/${category.id}`, { method: 'DELETE' });
+    const path = category.id
+      ? `/admin/menu-categories/${category.id}`
+      : `/admin/menu-categories/by-name/${encodeURIComponent(category.name)}`;
+    const response = await api(path, { method: 'DELETE' });
     if (!response.ok) {
       return alert((await response.json().catch(() => null))?.message || 'Could not delete the category.');
     }
+    const result = await response.json().catch(() => null);
     await load();
+    if (result?.movedDishes) {
+      alert(`Category deleted. ${result.movedDishes} dish${result.movedDishes === 1 ? ' was' : 'es were'} moved to Others.`);
+    }
   }
 
   // Search runs across every category: name, slug, description, category,
@@ -247,6 +290,8 @@ export default function FoodMenuManager() {
     if (statusFilter === 'available' && !row.available) return false;
     if (statusFilter === 'unavailable' && row.available) return false;
     if (statusFilter === 'featured' && !row.featured) return false;
+    if (statusFilter === 'visible' && row.isVisible === false) return false;
+    if (statusFilter === 'hidden' && row.isVisible !== false) return false;
     if (!query) return true;
     const tags = Array.isArray(row.tags) ? row.tags.join(' ') : (row.tags || '');
     return [row.name, row.slug, row.description, row.category, row.price, tags]
@@ -299,6 +344,8 @@ export default function FoodMenuManager() {
           <option value="available">Available</option>
           <option value="unavailable">Unavailable</option>
           <option value="featured">Chef&rsquo;s specials</option>
+          <option value="visible">Visible</option>
+          <option value="hidden">Hidden</option>
         </select>
         {(search || activeTab !== 'All' || statusFilter !== 'all') && (
           <button type="button" className="btn btn-secondary" onClick={() => { setSearch(''); setActiveTab('All'); setStatusFilter('all'); }}>
@@ -345,6 +392,7 @@ export default function FoodMenuManager() {
                 <th>Price</th>
                 <th>Tags</th>
                 <th>Status</th>
+                <th>Visibility</th>
                 <th>Sort Order</th>
                 <th>Actions</th>
               </tr>
@@ -408,6 +456,21 @@ export default function FoodMenuManager() {
                       <span className={`badge ${row.available ? 'badge-published' : 'badge-trash'}`}>
                         {row.available ? 'Available' : 'Unavailable'}
                       </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className={`badge ${row.isVisible === false ? 'badge-trash' : 'badge-published'}`}>
+                          {row.isVisible === false ? 'Hidden' : 'Visible'}
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={visibilitySaving === `item:${row.id}`}
+                          onClick={() => setVisibility('item', row, row.isVisible === false)}
+                        >
+                          {visibilitySaving === `item:${row.id}` ? 'Saving…' : row.isVisible === false ? 'Unhide' : 'Hide'}
+                        </button>
+                      </div>
                     </td>
                     <td>{row.sortOrder || 0}</td>
                     <td>
@@ -550,7 +613,7 @@ export default function FoodMenuManager() {
 
               <label className="field" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '10px' }}>
                 <input type="checkbox" name="available" checked={form.available} onChange={change} />
-                Dish is Active and Visible to Public
+                Available to order
               </label>
 
               <label className="field" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '10px' }}>
@@ -577,7 +640,7 @@ export default function FoodMenuManager() {
               <div>
                 <h3>Menu Categories</h3>
                 <p style={{ fontSize: '12px', color: 'var(--ink-muted)' }}>
-                  Add a category and set its photo and order on the /menu page. A category shows on the website once it has a dish.
+                  Set a category&rsquo;s photo and sort number to control its position on the menu and homepage. Hide or show it any time; deleting a category moves its dishes to Others.
                 </p>
               </div>
               <button className="icon-button" type="button" onClick={() => setCategoriesOpen(false)}>×</button>
@@ -591,7 +654,7 @@ export default function FoodMenuManager() {
               <label className="field">
                 Sort order
                 <input className="input" type="number" value={categoryForm.sortOrder} onChange={(e) => setCategoryForm((c) => ({ ...c, sortOrder: e.target.value }))} />
-                <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Built-in categories use 0, 10, 20 ... 90 (Wings = 0, Dessert = 90).</span>
+                <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Lower numbers appear first. Built-in categories default to 0, 10, 20 ... 90.</span>
               </label>
               <div className="field field-span">
                 <label>Category photo (round image on /menu)</label>
@@ -617,57 +680,78 @@ export default function FoodMenuManager() {
               </div>
             </form>
 
-            <table className="table">
-              <thead>
-                <tr>
-                  <th style={{ width: '56px' }}>Photo</th>
-                  <th>Category</th>
-                  <th>Dishes</th>
-                  <th>Order</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {categories.filter((name) => name !== 'Others' || countFor(name) > 0).map((name) => {
-                  const saved = managedCategories.find((category) => category.name === name);
-                  const builtIn = CANONICAL_CATEGORIES.indexOf(name);
-                  return (
-                    <tr key={name}>
-                      <td>
-                        {saved?.image ? (
-                          <img src={saved.image} alt="" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '50%' }} />
-                        ) : (
-                          <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Default</span>
-                        )}
-                      </td>
-                      <td>
-                        <b>{name}</b>
-                        {!saved && <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>{builtIn !== -1 ? 'Built-in' : 'Used by a dish'}</div>}
-                      </td>
-                      <td>{countFor(name)}</td>
-                      <td>{saved ? (saved.sortOrder || 0) : (builtIn !== -1 ? builtIn * 10 : '—')}</td>
-                      <td>
-                        <div className="table-actions">
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            title={saved ? 'Edit category' : 'Customize photo and order'}
-                            onClick={() => editCategory(saved || { ...emptyCategory, name, sortOrder: builtIn !== -1 ? builtIn * 10 : nextCategorySort() })}
-                          >
-                            <Edit size={14} />
-                          </button>
-                          {saved && (
-                            <button type="button" className="btn btn-danger" title="Delete category" onClick={() => removeCategory(saved)}>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '56px' }}>Photo</th>
+                    <th>Category</th>
+                    <th>Dishes</th>
+                    <th>Visibility</th>
+                    <th>Order</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map((name) => {
+                    const saved = managedCategories.find((category) => category.name === name);
+                    const builtIn = CANONICAL_CATEGORIES.indexOf(name);
+                    return (
+                      <tr key={name}>
+                        <td>
+                          {saved?.image ? (
+                            <img src={saved.image} alt="" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '50%' }} />
+                          ) : (
+                            <span style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>Default</span>
+                          )}
+                        </td>
+                        <td>
+                          <b>{name}</b>
+                          {!saved && <div style={{ fontSize: '11px', color: 'var(--ink-muted)' }}>{builtIn !== -1 ? 'Built-in' : 'Used by a dish'}</div>}
+                        </td>
+                        <td>{countFor(name)}</td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className={`badge ${saved?.isVisible === false ? 'badge-trash' : 'badge-published'}`}>
+                              {saved?.isVisible === false ? 'Hidden' : 'Visible'}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              disabled={visibilitySaving === `category:${name}`}
+                              onClick={() => setVisibility('category', { name }, saved?.isVisible === false)}
+                            >
+                              {visibilitySaving === `category:${name}` ? 'Saving…' : saved?.isVisible === false ? 'Unhide' : 'Hide'}
+                            </button>
+                          </div>
+                        </td>
+                        <td>{saved ? (saved.sortOrder || 0) : (builtIn !== -1 ? builtIn * 10 : '—')}</td>
+                        <td>
+                          <div className="table-actions">
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              title={saved ? 'Edit category' : 'Customize photo and order'}
+                              onClick={() => editCategory(saved || { ...emptyCategory, name, sortOrder: builtIn !== -1 ? builtIn * 10 : nextCategorySort() })}
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-danger"
+                              title="Delete category"
+                              onClick={() => removeCategory(saved || { name })}
+                            >
                               <Trash2 size={14} />
                             </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

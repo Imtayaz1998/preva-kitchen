@@ -17,6 +17,11 @@ if (process.env.NODE_ENV === 'production' && !process.env.BACKEND_URL) {
 const BACKEND = (process.env.BACKEND_URL || 'http://localhost:4000').replace(/\/$/, '');
 
 export async function cmsFetch(path, { method = 'GET', body = null, query = {} } = {}) {
+  const result = await cmsFetchWithStatus(path, { method, body, query });
+  return result.ok ? result.data : null;
+}
+
+export async function cmsFetchWithStatus(path, { method = 'GET', body = null, query = {} } = {}) {
   const url = new URL(`${BACKEND}/api${path.startsWith('/') ? path : `/${path}`}`);
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
@@ -29,13 +34,16 @@ export async function cmsFetch(path, { method = 'GET', body = null, query = {} }
       headers: body ? { 'Content-Type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined
     });
-    if (!response.ok) return null;
-    return await response.json();
+    return {
+      ok: response.ok,
+      status: response.status,
+      data: response.ok ? await response.json() : null
+    };
   } catch (error) {
     // The backend being down should degrade a page to its fallbacks, not
     // crash the render.
     console.error(`[cms] ${method} ${url.pathname} failed:`, error.message);
-    return null;
+    return { ok: false, status: 0, data: null };
   }
 }
 

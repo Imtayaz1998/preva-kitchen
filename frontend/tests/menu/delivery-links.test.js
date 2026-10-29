@@ -14,9 +14,9 @@ const ITEM_LINK_SLUGS = [
 ];
 
 describe('canonical menu delivery links', () => {
-  it('keeps both static menu sources aligned with all 34 menu items', () => {
-    expect(KITCHEN_MENU_ITEMS).toHaveLength(34);
-    expect(withoutLegacyDuplicates(FALLBACK_PRODUCTS)).toHaveLength(34);
+  it('keeps both static menu sources aligned with all 36 menu items', () => {
+    expect(KITCHEN_MENU_ITEMS).toHaveLength(36);
+    expect(withoutLegacyDuplicates(FALLBACK_PRODUCTS)).toHaveLength(36);
     expect(FALLBACK_PRODUCTS.map((item) => item.slug).sort()).toEqual(
       KITCHEN_MENU_ITEMS.map((item) => item.slug).sort()
     );

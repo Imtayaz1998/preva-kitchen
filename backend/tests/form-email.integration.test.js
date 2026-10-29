@@ -108,3 +108,40 @@ test('career application validates, persists, and renders both notification emai
   assert.equal(saved.resume.name, 'candidate.pdf');
   assert.equal(saved.role, 'general-application');
 });
+
+test('internal career application forwards are saved without sending duplicate emails', async () => {
+  const logged = [];
+  const originalLog = console.log;
+  console.log = (...args) => logged.push(args);
+
+  try {
+    const response = await dispatch({
+      method: 'POST',
+      path: '/career-applications',
+      body: {
+        firstName: 'Forwarded',
+        lastName: 'Career',
+        email: 'forwarded-candidate@example.com',
+        phone: '313-555-0104',
+        role: 'general-application',
+        availability: 'Open availability',
+        consent: true,
+        resume: {
+          name: 'candidate.pdf',
+          type: 'application/pdf',
+          size: 9,
+          data: 'data:application/pdf;base64,JVBERi0xLjQK'
+        },
+        skipEmail: true
+      },
+      ip: 'test-career-forward-ip',
+      request: request({ 'x-internal-forward': 'true' })
+    });
+
+    assert.equal(response.status, 201);
+    assert.equal(response.body.ok, true);
+    assert.equal(logged.some(([message]) => message === '[email:dry-run] rendered:'), false);
+  } finally {
+    console.log = originalLog;
+  }
+});

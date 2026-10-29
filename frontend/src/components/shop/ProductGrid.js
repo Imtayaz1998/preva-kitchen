@@ -4,13 +4,19 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { money } from '@/lib/money';
 import Tilt3DCard from '../Tilt3DCard';
-import { Sparkles, ArrowRight, Search } from 'lucide-react';
+import { ArrowRight, Search } from 'lucide-react';
 import { dishImage } from '@/lib/dish-images';
 import { CATEGORY_IMAGES, CANONICAL_CATEGORIES, normalizeCategoryName, categoryPath } from '@/lib/menu-categories';
+import {
+  getMenuDisplayName,
+  getProductMenuPriceCents,
+  MENU_IMAGE_UNAVAILABLE
+} from '@/lib/menu-options';
 
 export function ProductCard({ product }) {
   const soldOut = !product.available;
-  const imageSrc = dishImage(product);
+  const productName = getMenuDisplayName(product.name, product.slug);
+  const imageSrc = MENU_IMAGE_UNAVAILABLE.has(product.slug) && !product.image ? null : dishImage(product);
 
   return (
     <Tilt3DCard className="ps-card">
@@ -19,18 +25,24 @@ export function ProductCard({ product }) {
             duplicate target for mouse users, so keep it out of the tab order and
             the accessibility tree. */}
         <Link href={`/menu/${product.slug}`} tabIndex={-1} aria-hidden="true" style={{ display: 'block', height: '100%' }}>
-          <img
-            src={imageSrc}
-            alt={`${product.name} at Preva Kitchen`}
-            loading="lazy"
-            onError={(e) => {
-              if (product.slug?.includes('pasta')) {
-                e.currentTarget.src = '/asset/home-reference/signature-dishes/Rasta-Pasta.webp';
-              } else {
-                e.currentTarget.src = '/asset/hero/preva-pasta-hero.jpg';
-              }
-            }}
-          />
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt={`${productName} at Preva Kitchen`}
+              loading="lazy"
+              onError={(e) => {
+                if (product.slug?.includes('pasta')) {
+                  e.currentTarget.src = '/asset/home-reference/signature-dishes/Rasta-Pasta.webp';
+                } else {
+                  e.currentTarget.src = '/asset/hero/preva-pasta-hero.jpg';
+                }
+              }}
+            />
+          ) : (
+            <div className="ps-product-photo-placeholder" role="img" aria-label={`${productName} photo unavailable`}>
+              Product photo unavailable
+            </div>
+          )}
         </Link>
 
         <div className="ps-card__chips">
@@ -40,14 +52,14 @@ export function ProductCard({ product }) {
       </div>
 
       <h3 style={{ margin: 0, fontSize: 'inherit', textTransform: 'inherit', lineHeight: 'inherit' }}>
-        <Link className="ps-card__name" href={`/menu/${product.slug}`}>{product.name}</Link>
+        <Link className="ps-card__name" href={`/menu/${product.slug}`}>{productName}</Link>
       </h3>
 
       {product.description && <p className="ps-card__desc">{product.description}</p>}
 
       <div className="ps-card__foot lx-card-foot">
         <div className="lx-foot-left">
-          <span className="ps-price">{money(product.priceCents)}</span>
+          <span className="ps-price">{money(getProductMenuPriceCents(product))}</span>
           {product.showServings && product.servings && <span className="ps-meta">{product.servings}</span>}
         </div>
         {!soldOut && (
@@ -190,30 +202,13 @@ export default function ProductGrid({ products, categories }) {
               key={group.category}
               id={`cat-${group.category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
               style={{
-                position: 'relative',
-                paddingTop: '16px'
+                position: 'relative'
               }}
             >
               {/* Category Section Header */}
               <div style={{ marginBottom: '28px', borderBottom: '1px solid rgba(213, 164, 79, 0.15)', paddingBottom: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        color: '#c5a059',
-                        fontSize: '0.72rem',
-                        fontWeight: 800,
-                        letterSpacing: '0.18em',
-                        textTransform: 'uppercase',
-                        marginBottom: '6px'
-                      }}
-                    >
-                      <Sparkles size={13} />
-                      PREVA SIGNATURE
-                    </span>
                     <h2
                       style={{
                         fontFamily: 'var(--font-roboto), Arial, sans-serif',

@@ -43,8 +43,15 @@ export default function GoogleAnalytics() {
    ══════════════════════════════════════════════════════════════════════════ */
 
 function safeGtag(...args) {
-  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+  if (typeof window === 'undefined') return;
+  if (typeof window.gtag === 'function') {
     window.gtag(...args);
+    return;
+  }
+
+  const [command, eventName, params] = args;
+  if (command === 'event' && Array.isArray(window.dataLayer)) {
+    window.dataLayer.push({ event: eventName, ...params });
   }
 }
 

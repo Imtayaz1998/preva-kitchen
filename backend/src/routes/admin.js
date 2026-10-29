@@ -384,7 +384,10 @@ del('/admin/sections/:key', { auth: true, roles: MANAGE }, async (ctx) => {
    subtly wrong, so it is written once.
    ══════════════════════════════════════════════════════════════════════════ */
 
-function resource({ path, collection, entity, roles = WRITE, sort = { name: 1 }, unique = null, build, afterUpdate = null }) {
+function resource({
+  path, collection, entity, roles = WRITE, sort = { name: 1 }, unique = null,
+  build, afterUpdate = null, beforeDelete = null, deleteByName = null
+}) {
   get(`/admin/${path}`, { auth: true }, async () => {
     const target = await col(collection);
     const rows = await target.find().sort(sort).toArray();
@@ -425,21 +428,49 @@ function resource({ path, collection, entity, roles = WRITE, sort = { name: 1 },
     return serialize({ ...current, ...document, _id: id });
   });
 
+  if (deleteByName) {
+    del(`/admin/${path}/by-name/:name`, { auth: true, roles }, async (ctx) => {
+      const target = await col(collection);
+      const name = cleanText(ctx.params.name, 80);
+      if (!name) throw badRequest(`A ${entity.toLowerCase().replace('_', ' ')} name is required.`);
+      const current = await target.findOne({ name });
+      const movedDishes = await deleteByName({ name, current, ctx });
+      if (current) await target.deleteOne({ _id: current._id });
+      await logActivity(ctx, 'DELETE', entity, name);
+      return { ok: true, ...(Number.isFinite(movedDishes) ? { movedDishes } : {}) };
+    });
+  }
+
   del(`/admin/${path}/:id`, { auth: true, roles }, async (ctx) => {
     const target = await col(collection);
     const id = asObjectId(ctx.params.id);
     const current = id ? await target.findOne({ _id: id }) : null;
     if (!current) throw notFound(`${entity} not found.`);
 
+    const movedDishes = beforeDelete ? await beforeDelete(current, ctx) : undefined;
     await target.deleteOne({ _id: id });
     await logActivity(ctx, 'DELETE', entity, current.name || current.title || '');
-    return { ok: true };
+    return { ok: true, ...(Number.isFinite(movedDishes) ? { movedDishes } : {}) };
   });
+}
+
+async function moveCategoryDishesToOthers(name) {
+  const items = await col('menuItems');
+  const count = await items.countDocuments({ category: name });
+  if (name === 'Others' && count > 0) {
+    throw badRequest('Move dishes out of Others before deleting this category.');
+  }
+  if (!count) return 0;
+  const result = await items.updateMany(
+    { category: name },
+    { $set: { category: 'Others', updatedAt: new Date() } }
+  );
+  return result.modifiedCount;
 }
 
 resource({
   path: 'categories', collection: 'categories', entity: 'CATEGORY', unique: 'slug',
-  build: (body) => {
+  build: (body, current = null) => {
     const name = cleanText(body?.name, 120);
     if (!name) throw badRequest('A category name is required.');
     return { name, slug: slug(body?.slug || name), description: cleanText(body?.description, 500) };
@@ -451,7 +482,7 @@ resource({
   // Matches WordPress: authors can create post tags on the fly from the
   // editor even though creating categories still needs an editor/admin role.
   roles: AUTHOR,
-  build: (body) => {
+  build: (body, current = null) => {
     const name = cleanText(body?.name, 120);
     if (!name) throw badRequest('A tag name is required.');
     return { name, slug: slug(body?.slug || name) };
@@ -461,7 +492,7 @@ resource({
 resource({
   path: 'galleries', collection: 'galleries', entity: 'GALLERY', unique: 'slug',
   sort: { updatedAt: -1 },
-  build: (body) => {
+  build: (body, current = null) => {
     const title = cleanText(body?.title, 200);
     if (!title) throw badRequest('A gallery title is required.');
     return {
@@ -642,8 +673,9 @@ resource({
    category here also moves its dishes. */
 resource({
   path: 'menu-categories', collection: 'menuCategories', entity: 'MENU_CATEGORY', unique: 'slug',
+  roles: MANAGE,
   sort: { sortOrder: 1, name: 1 },
-  build: (body) => {
+  build: (body, current = null) => {
     const name = cleanText(body?.name, 80);
     if (!name) throw badRequest('A category name is required.');
     return {
@@ -651,20 +683,23 @@ resource({
       slug: slug(body?.slug || name),
       image: cleanText(body?.image, 2000),
       description: cleanText(body?.description, 500),
-      sortOrder: cleanInt(body?.sortOrder, 0)
+      sortOrder: cleanInt(body?.sortOrder, 0),
+      isVisible: current?.isVisible !== false
     };
   },
   afterUpdate: async (current, document) => {
     if (current.name === document.name) return;
     const items = await col('menuItems');
     await items.updateMany({ category: current.name }, { $set: { category: document.name, updatedAt: new Date() } });
-  }
+  },
+  beforeDelete: (current) => moveCategoryDishesToOthers(current.name),
+  deleteByName: ({ name }) => moveCategoryDishesToOthers(name)
 });
 
 /* Menu items carry the shop fields too, so one screen manages both the
    printed menu and what can be ordered online. */
 resource({
-  path: 'menu-items', collection: 'menuItems', entity: 'MENU_ITEM',
+  path: 'menu-items', collection: 'menuItems', entity: 'MENU_ITEM', unique: 'slug',
   sort: { category: 1, sortOrder: 1, name: 1 },
   build: (body, current = null) => {
     const name = cleanText(body?.name, 120);
@@ -677,6 +712,9 @@ resource({
     return {
       name,
       slug: slug(body?.slug || name),
+      seoTitle: cleanText(body?.seoTitle ?? current?.seoTitle, 250),
+      seoDescription: cleanText(body?.seoDescription ?? current?.seoDescription, 400),
+      focusKeyword: cleanText(body?.focusKeyword ?? current?.focusKeyword, 160),
       price: cleanText(body?.price, 40) || `$${(priceCents / 100).toFixed(2)}`,
       priceCents,
       description: cleanText(body?.description, 500),
@@ -685,6 +723,9 @@ resource({
       category: cleanText(body?.category, 80) || 'Others',
       image: cleanText(body?.image, 2000) || null,
       available: cleanBool(body?.available, true),
+      isVisible: body?.isVisible === undefined
+        ? current?.isVisible !== false
+        : cleanBool(body.isVisible, current?.isVisible !== false),
       // A dish added in the admin should get its /menu page straight away, so
       // new items default to orderable; existing items keep what they had.
       orderable: cleanBool(body?.orderable, current?.orderable ?? true),
@@ -721,6 +762,51 @@ resource({
       sortOrder: cleanInt(body?.sortOrder, 0)
     };
   }
+});
+
+patch('/admin/menu-visibility', { auth: true, roles: MANAGE }, async (ctx) => {
+  const { type, isVisible } = ctx.body || {};
+  if (typeof isVisible !== 'boolean') throw badRequest('Visibility must be true or false.');
+
+  if (type === 'item') {
+    const id = asObjectId(ctx.body?.id);
+    if (!id) throw badRequest('A valid menu item is required.');
+    const items = await col('menuItems');
+    const current = await items.findOne({ _id: id });
+    if (!current) throw notFound('Menu item not found.');
+    await items.updateOne({ _id: id }, { $set: { isVisible, updatedAt: new Date() } });
+    await logActivity(ctx, 'UPDATE', 'MENU_ITEM_VISIBILITY', current.name);
+    return { id: id.toString(), isVisible };
+  }
+
+  if (type === 'category') {
+    const name = cleanText(ctx.body?.name, 80);
+    if (!name) throw badRequest('A category name is required.');
+    const categories = await col('menuCategories');
+    const current = await categories.findOne({ name });
+    const now = new Date();
+    let categoryId;
+    if (current) {
+      await categories.updateOne({ _id: current._id }, { $set: { isVisible, updatedAt: now } });
+      categoryId = current._id;
+    } else {
+      const inserted = await categories.insertOne({
+        name,
+        slug: slug(name),
+        image: '',
+        description: '',
+        sortOrder: 0,
+        isVisible,
+        createdAt: now,
+        updatedAt: now
+      });
+      categoryId = inserted.insertedId;
+    }
+    await logActivity(ctx, 'UPDATE', 'MENU_CATEGORY_VISIBILITY', name);
+    return { id: categoryId.toString(), name, isVisible };
+  }
+
+  throw badRequest('Visibility target must be a menu item or category.');
 });
 
 /* ══════════════════════════════════════════════════════════════════════════
